@@ -8,6 +8,7 @@ class Tempo(threading.Thread):
     bars = 4
     bpm = 120
     start_time = 0
+    enable_metronome = True
 
     def __init__(self):
         super().__init__(daemon=True)
@@ -51,10 +52,10 @@ class Tempo(threading.Thread):
             next_tick = self.pos_to_time(round(self.get_pos()) + 1)
             time.sleep(next_tick - self.get_time())
             q = self.pos_to_q(round(self.get_pos()))
-            # print(self.get_pos(), self.get_q(), q)
-            # if q[2] == 1:
-            #     self.metronome_b_sound.play()
-            # else:
-            #     self.metronome_sound.play()
+            if self.enable_metronome:
+                if q[2] == 1:
+                    self.metronome_b_sound.play()
+                else:
+                    self.metronome_sound.play()
             time.sleep(self.metronome_sound.get_length())
             # print(time.time())

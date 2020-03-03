@@ -17,15 +17,13 @@ class App:
         self.tempo = Tempo()
         self.tempo.start()
 
-        self.display = Display(self)
-        self.display.start()
-
         self.sequencer = Sequencer(self)
 
-        self.input_manager.message.subscribe(lambda msg: self.sequencer.add(msg))
+        self.input_manager.message.subscribe(lambda msg: self.process_message(msg))
         self.sequencer.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
 
-        self.sequencer.start()
+        self.display = Display(self)
+        self.display.start()
 
         try:
             while True:
@@ -40,8 +38,15 @@ class App:
                             self.sequencer.stop()
                         if event.key == pygame.K_e:
                             self.sequencer.record()
+                        if event.key == pygame.K_m:
+                            self.tempo.enable_metronome = not self.tempo.enable_metronome
                     if event.type == pygame.QUIT:
                         sys.exit()
 
         except KeyboardInterrupt:
             sys.exit(0)
+
+    def process_message(self, msg):
+        self.sequencer.process_message(msg)
+        if msg.type not in ['note_on', 'note_off']:
+            self.output_manager.send_to_all(msg)

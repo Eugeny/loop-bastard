@@ -1,6 +1,7 @@
 import mido
 import time
 import threading
+from rx.subject import Subject
 
 
 class OutputManager(threading.Thread):
@@ -8,6 +9,10 @@ class OutputManager(threading.Thread):
         super().__init__(daemon=True)
         self.known_ports = []
         self.open_ports = {}
+        self.message = Subject()
+
+    def has_output(self):
+        return len(self.known_ports) > 0
 
     def run(self):
         while True:
@@ -28,5 +33,7 @@ class OutputManager(threading.Thread):
             time.sleep(0.1)
 
     def send_to_all(self, message):
+        self.message.on_next(message)
+        print('Sent', message)
         for port in self.open_ports.values():
             port.send(message)

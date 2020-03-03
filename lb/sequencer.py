@@ -11,20 +11,72 @@ class SequencerEvent:
     message: mido.Message
 
 
-class Sequencer(threading.Thread):
-    bars = 2
-    events = []
-    running = False
-    recording = False
-    start_time = 0
-    stop_flag = False
-    open_note_on_events = {}
-    output = Subject()
-
-    def __init__(self, app):
+class SequencerPlayer(threading.Thread):
+    def __init__(self, sequencer):
         super().__init__(daemon=True)
+        self.sequencer = sequencer
+        self.stop_flag = False
+
+    def stop(self):
+        self.stop_flag = True
+
+    def run2(self):
+        next_idx = 0
+        while True:
+            if not self.sequencer.events:
+                time.sleep(1)
+                continue
+            if next_idx >= len(self.sequencer.events):
+                next_idx = 0
+
+            next_time = self.sequencer.events[next_idx].time
+
+            wait_time = next_time - self.sequencer.get_time()
+            if wait_time < 0 and next_idx == 0:
+                wait_time = self.sequencer.normalize_time(wait_time)
+            if wait_time > 0:
+                time.sleep(wait_time)
+            if self.stop_flag:
+                break
+
+            self.sequencer.output.on_next(self.sequencer.events[next_idx].message)
+            next_idx += 1
+
+    def run(self):
+        last_time = 0
+        next_time = 0
+        while True:
+            next_time = self.sequencer.get_time() + 1 / 200
+            next_wall_time = time.time() + 1 / 200
+
+            for event in self.sequencer.events:
+                if (event.time >= last_time and event.time < next_time) or (event.time - self.sequencer.get_length() >= last_time and event.time - self.sequencer.get_length() < next_time):
+                    self.sequencer.output.on_next(event.message)
+
+            wait_time = next_wall_time - time.time()
+            if wait_time > 0:
+                time.sleep(wait_time)
+            if self.stop_flag:
+                break
+
+            last_time = self.sequencer.normalize_time(next_time)
+
+
+class Sequencer:
+    def __init__(self, app):
         self.app = app
+
+        self.bars = 4
+        self.events = []
+        self.running = False
+        self.recording = False
+        self.start_time = 0
+        self.stop_flag = False
+        self.open_note_on_events = {}
+        self.output = Subject()
+        self.player_thread = None
         self.lock = threading.RLock()
+
         self.reset()
 
     def get_time(self):
@@ -43,20 +95,41 @@ class Sequencer(threading.Thread):
             self.events = []
 
     def start(self):
+        if self.recording:
+            self.stop_recording()
+            return
         self.start_time = self.app.tempo.get_time()
         self.running = True
-        super().start()
-        self.stop_flag = False
+        self.player_thread = SequencerPlayer(self)
+        self.player_thread.start()
 
     def record(self):
+        if not self.running:
+            self.start()
         self.recording = True
-        self.start()
+
+    def stop_recording(self):
+        self.recording = False
+        self.close_open_notes()
 
     def stop(self):
         self.running = False
         self.recording = False
-        self.stop_flag = True
-        #for i in range(0, 128):
+        self.close_open_notes()
+        if self.player_thread:
+            self.player_thread.stop()
+            self.player_thread = None
+
+        for i in range(0, 128):
+            self.app.output_manager.send_to_all(mido.Message(type='note_off', note=i))
+
+    def close_open_notes(self):
+        for note in self.open_note_on_events.keys():
+            self.events.append(SequencerEvent(
+                time=self.get_time(),
+                message=mido.Message(type='note_off', note=note)
+            ))
+            self.cleanup()
 
     def normalize_time(self, t):
         return (t + self.get_length()) % self.get_length()
@@ -89,7 +162,10 @@ class Sequencer(threading.Thread):
     def is_note_open(self, event):
         return event in self.open_note_on_events.values()
 
-    def add(self, message):
+    def process_message(self, message):
+        if not self.recording:
+            return
+
         with self.lock:
             time = self.get_time()
             self.cleanup()
@@ -102,7 +178,7 @@ class Sequencer(threading.Thread):
                     self.open_note_on_events[message.note] = event
                     self.events.append(event)
                 if message.type == 'note_off':
-                    if self.open_note_on_events[message.note]:
+                    if message.note in self.open_note_on_events:
                         self.remove_notes_between(
                             message.note,
                             self.open_note_on_events[message.note].time,
@@ -125,19 +201,3 @@ class Sequencer(threading.Thread):
                 if event.message.type == 'note_off':
                     if event.message.note in m:
                         del m[event.message.note]
-
-    def run(self):
-        next_idx = 0
-        while True:
-            if not self.events:
-                time.sleep(1)
-                continue
-            if next_idx >= len(self.events):
-                next_idx = 0
-            next_time = self.events[next_idx].time
-            time.sleep(self.normalize_time(next_time - self.get_time()))
-            if self.stop_flag:
-                break
-
-            self.output.on_next(self.events[next_idx].message)
-            next_idx += 1

@@ -23,118 +23,158 @@ class Display(threading.Thread):
         self.app = app
         pygame.init()
         self.screen = pygame.display.set_mode((800, 400))
-        self.font = pygame.font.Font('bryant.ttf', 8)
+        self.font = pygame.font.Font('bryant.ttf', 10)
+        self.img_midi_in = pygame.image.load('images/midi-in.png')
+        self.img_midi_out = pygame.image.load('images/midi-out.png')
+        self.img_midi_in_disconnected = self.img_midi_in.copy()
+        self.img_midi_in_disconnected.fill((255, 0, 0), special_flags=pygame.BLEND_MULT)
+        self.img_midi_out_disconnected = self.img_midi_out.copy()
+        self.img_midi_out_disconnected.fill((255, 0, 0), special_flags=pygame.BLEND_MULT)
+
+        self.had_midi_in_activity = False
+        self.had_midi_out_activity = False
+
+        self.app.input_manager.message.subscribe(lambda _: self._on_midi_in())
+        self.app.output_manager.message.subscribe(lambda _: self._on_midi_out())
+
+    def _on_midi_in(self):
+        self.had_midi_in_activity = True
+
+    def _on_midi_out(self):
+        self.had_midi_out_activity = True
+
+    def draw_status_bar(self, surface):
+        surface.fill((20, 20, 20))
+
+        if self.app.input_manager.has_input():
+            self.img_midi_in.set_alpha(255 if self.had_midi_in_activity else 128)
+            surface.blit(self.img_midi_in, (2, 2))
+        else:
+            surface.blit(self.img_midi_in_disconnected, (2, 2))
+
+        if self.app.output_manager.has_output():
+            self.img_midi_out.set_alpha(255 if self.had_midi_out_activity else 128)
+            surface.blit(self.img_midi_out, (surface.get_width() - 34, 2))
+        else:
+            surface.blit(self.img_midi_out_disconnected, (surface.get_width() - 34, 2))
+
+    def draw_sequencer(self, surface, sequencer):
+        def time_to_x(t):
+            return surface.get_width() * t / sequencer.get_length()
+
+        for i in range(1, sequencer.bars + 1):
+            color = (10, 10, 10) if (i % 2) else (20, 20, 20)
+            surface.fill(color, rect=(
+                time_to_x(self.app.tempo.q_to_time((1, i, 1))),
+                0,
+                time_to_x(self.app.tempo.q_to_time((1, 2, 1))),
+                surface.get_height(),
+            ))
+
+        for i in range(1, sequencer.bars * self.app.tempo.bar_size + 1):
+            surface.fill((30, 30, 30), rect=(
+                time_to_x(self.app.tempo.q_to_time((1, 1, i))),
+                0,
+                1,
+                surface.get_height(),
+            ))
+
+        with sequencer.lock:
+            dif_notes = sorted(set(x.message.note for x in sequencer.events))
+            if len(sequencer.events):
+                note_h = surface.get_height() / max(10, len(dif_notes))
+                notes_y = {note: surface.get_height() - (idx + 1) * surface.get_height() / len(dif_notes) for idx, note in enumerate(dif_notes)}
+
+                def draw_note(note, x, w):
+                    c = note.velocity / 128
+                    color = (50 + c * 180, 50, 220 - c * 180)
+                    text_color = (
+                        min(int(color[0] * 1.5), 255),
+                        min(int(color[1] * 1.5), 255),
+                        min(int(color[2] * 1.5), 255),
+                    )
+                    note_rect = (x, notes_y[note.note], w, note_h)
+                    pygame.draw.rect(
+                        surface,
+                        color,
+                        note_rect,
+                    )
+                    pygame.draw.rect(
+                        surface,
+                        (color[0] / 3, color[1] / 3, color[2] / 3),
+                        pygame.Rect(note_rect).inflate(-2, -2),
+                    )
+                    name, o = number_to_note(note.note)
+                    text = f'{name} {o}'
+                    if x >= 0:
+                        text_w, text_h = self.font.size(text)
+                        if note_rect[2] > text_w + 5 and note_rect[3] > text_h + 5:
+                            surface.blit(
+                                self.font.render(
+                                    text,
+                                    True,
+                                    text_color,
+                                ),
+                                (x + 5, notes_y[note.note] + 5, w, note_h),
+                            )
+
+                m = {}
+                notes = []
+                remaining_events = sequencer.events[:]
+                for event in remaining_events[:]:
+                    if event.message.type == 'note_on':
+                        m[event.message.note] = event
+                        remaining_events.remove(event)
+                    if event.message.type == 'note_off':
+                        if event.message.note in m:
+                            notes.append((m[event.message.note], event.time - m[event.message.note].time))
+                            remaining_events.remove(event)
+                            del m[event.message.note]
+                for event in remaining_events:
+                    if event.message.type == 'note_off':
+                        if event.message.note in m:
+                            notes.append((m[event.message.note], event.time + sequencer.get_length() - m[event.message.note].time))
+                            del m[event.message.note]
+
+                for event in sequencer.events:
+                    if event.message.type == 'note_on' and sequencer.is_note_open(event):
+                        length = sequencer.get_time() - event.time
+                        length = sequencer.normalize_time(length)
+                        notes.append((event, length))
+
+                for (event, length) in notes:
+                    draw_note(
+                        event.message,
+                        time_to_x(event.time),
+                        time_to_x(length),
+                    )
+                    if event.time + length > sequencer.get_length():
+                        draw_note(
+                            event.message,
+                            time_to_x(event.time - sequencer.get_length()),
+                            time_to_x(length),
+                        )
+
+        # Time indicator
+        surface.fill(
+            (255, 255, 255),
+            (time_to_x(sequencer.get_time()), 0, 1, surface.get_height())
+        )
 
     def run(self):
         while True:
-            time.sleep(1 / 60)
-
             self.screen.fill((0, 0, 20))
-            seq_w = 600
-            seq_h = 200
-            seq_surf = self.screen.subsurface((100, 200, seq_w, seq_h))
 
-            def time_to_x(t):
-                return seq_w * t / self.app.sequencer.get_length()
+            self.draw_status_bar(
+                self.screen.subsurface((0, 0, self.screen.get_width(), 36)),
+            )
 
-            for i in range(1, self.app.sequencer.bars + 1):
-                color = (10, 10, 10) if (i % 2) else (20, 20, 20)
-                seq_surf.fill(color, rect=(
-                    time_to_x(self.app.tempo.q_to_time((1, i, 1))),
-                    0,
-                    time_to_x(self.app.tempo.q_to_time((1, 2, 1))),
-                    seq_h,
-                ))
-
-            for i in range(1, self.app.sequencer.bars * self.app.tempo.bar_size + 1):
-                seq_surf.fill((30, 30, 30), rect=(
-                    time_to_x(self.app.tempo.q_to_time((1, 1, i))),
-                    0,
-                    1,
-                    seq_h,
-                ))
-
-            with self.app.sequencer.lock:
-                dif_notes = sorted(set(x.message.note for x in self.app.sequencer.events))
-                if len(self.app.sequencer.events):
-                    note_h = seq_h / max(10, len(dif_notes))
-                    notes_y = {note: seq_h - (idx + 1) * seq_h / len(dif_notes) for idx, note in enumerate(dif_notes)}
-
-                    def draw_note(note, x, w):
-                        c = note.velocity / 128
-                        color = (50 + c * 180, 50, 220 - c * 180)
-                        text_color = (
-                            max(int(color[0] * 1.2), 255),
-                            max(int(color[1] * 1.2), 255),
-                            max(int(color[2] * 1.2), 255),
-                        )
-                        note_rect = (x, notes_y[note.note], w, note_h)
-                        pygame.draw.rect(
-                            seq_surf,
-                            color,
-                            note_rect,
-                        )
-                        pygame.draw.rect(
-                            seq_surf,
-                            (color[0] / 3, color[1] / 3, color[2] / 3),
-                            pygame.Rect(note_rect).inflate(-2, -2),
-                        )
-                        name, o = number_to_note(note.note)
-                        text = f'{name} {o}'
-                        size = min(20, note_h * 0.7)
-                        if x >= 0:
-                            text_rect = self.font.get_rect(text, size=size)
-                            if note_rect[2] > text_rect[2] + 5 and note_rect[3] > text_rect[3]:
-                                seq_surf.blit(
-                                    self.font.render(
-                                        text,
-                                        True,
-                                        text_color,
-                                    ),
-                                    (x + 5, notes_y[note.note] + 5, w, note_h),
-                                )
-
-                    m = {}
-                    notes = []
-                    remaining_events = self.app.sequencer.events[:]
-                    for event in remaining_events[:]:
-                        if event.message.type == 'note_on':
-                            m[event.message.note] = event
-                            remaining_events.remove(event)
-                        if event.message.type == 'note_off':
-                            if event.message.note in m:
-                                notes.append((m[event.message.note], event.time - m[event.message.note].time))
-                                remaining_events.remove(event)
-                                del m[event.message.note]
-                    for event in remaining_events:
-                        if event.message.type == 'note_off':
-                            if event.message.note in m:
-                                notes.append((m[event.message.note], event.time + self.app.sequencer.get_length() - m[event.message.note].time))
-                                del m[event.message.note]
-
-                    for event in self.app.sequencer.events:
-                        if event.message.type == 'note_on' and self.app.sequencer.is_note_open(event):
-                            length = self.app.sequencer.get_time() - event.time
-                            length = self.app.sequencer.normalize_time(length)
-                            notes.append((event, length))
-
-                    for (event, length) in notes:
-                        draw_note(
-                            event.message,
-                            time_to_x(event.time),
-                            time_to_x(length),
-                        )
-                        if event.time + length > self.app.sequencer.get_length():
-                            draw_note(
-                                event.message,
-                                time_to_x(event.time - self.app.sequencer.get_length()),
-                                time_to_x(length),
-                            )
-
-            # Time indicator
-            seq_surf.fill(
-                (255, 255, 255),
-                (time_to_x(self.app.sequencer.get_time()), 0, 1, seq_h)
+            self.draw_sequencer(
+                self.screen.subsurface((100, 200, 600, 200)),
+                self.app.sequencer,
             )
 
             pygame.display.flip()
+            self.had_midi_in_activity = False
+            self.had_midi_out_activity = False
+            time.sleep(1 / 60)

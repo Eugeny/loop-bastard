@@ -6,17 +6,17 @@ from mido.ports import multi_receive
 
 
 class MidiReceiver(threading.Thread):
-    message = Subject()
-
     def __init__(self, ports):
         super().__init__(daemon=True)
         self.stop_flag = False
+        self.message = Subject()
         self.ports = [mido.open_input(name) for name in ports]
 
     def run(self):
         for message in multi_receive(self.ports):
             self.message.on_next(message)
             print('Received {}'.format(message))
+            print(message.time)
             if self.stop_flag:
                 break
 
@@ -32,6 +32,9 @@ class InputManager(threading.Thread):
         super().__init__(daemon=True)
         self.known_ports = []
         self.receiver_thread = None
+
+    def has_input(self):
+        return len(self.known_ports) > 0
 
     def run(self):
         while True:
@@ -51,5 +54,5 @@ class InputManager(threading.Thread):
 
                 self.receiver_thread = MidiReceiver(ports)
                 self.receiver_thread.start()
-                self.receiver_thread.message.subscribe(self.message)
+                self.receiver_thread.message.subscribe(lambda m: self.message.on_next(m))
             time.sleep(0.1)
