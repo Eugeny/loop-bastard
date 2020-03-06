@@ -19,13 +19,13 @@ class App:
 
         self.sequencer = Sequencer(self)
 
-        self.input_manager.message.subscribe(lambda msg: self.process_message(msg))
+        self.input_manager.message.subscribe(lambda port, msg: self.process_message(port, msg))
         self.sequencer.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
 
         self.display = Display(self)
         self.display.run()
 
-    def process_message(self, msg):
+    def process_message(self, port, msg):
         self.sequencer.process_message(msg)
         if msg.type not in ['note_on', 'note_off']:
-            self.output_manager.send_to_all(msg)
+            self.output_manager.send_to_all(msg, except=port)

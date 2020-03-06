@@ -13,10 +13,9 @@ class MidiReceiver(threading.Thread):
         self.ports = [mido.open_input(name) for name in ports]
 
     def run(self):
-        for message in multi_receive(self.ports):
-            self.message.on_next(message)
-            print('Received {}'.format(message))
-            print(message.time)
+        for port, message in multi_receive(self.ports, yield_ports=True):
+            self.message.on_next((port, message))
+            print('{} -> {}'.format(port, message))
             if self.stop_flag:
                 break
 
