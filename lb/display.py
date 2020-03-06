@@ -56,6 +56,7 @@ class Display(threading.Thread):
 
         for i in range(1, sequencer.bars + 1):
             color = (10, 10, 10) if (i % 2) else (20, 20, 20)
+            color = (0,0,0)
             surface.fill(color, rect=(
                 time_to_x(self.app.tempo.q_to_time((1, i, 1))),
                 0,
@@ -64,7 +65,8 @@ class Display(threading.Thread):
             ))
 
         for i in range(1, sequencer.bars * self.app.tempo.bar_size + 1):
-            surface.fill((30, 30, 30), rect=(
+            color = (50, 50, 100) if (i % 4 == 1) else (30, 30, 30)
+            surface.fill(color, rect=(
                 time_to_x(self.app.tempo.q_to_time((1, 1, i))),
                 0,
                 1,
