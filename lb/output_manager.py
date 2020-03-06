@@ -32,7 +32,7 @@ class OutputManager(threading.Thread):
 
             time.sleep(0.1)
 
-    def send_to_all(self, message, except=None):
+    def send_to_all(self, message):
         self.message.on_next(message)
         print('Sent', message)
         for port in self.open_ports.values():
