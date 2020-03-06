@@ -27,5 +27,5 @@ class App:
 
     def process_message(self, port, msg):
         self.sequencer.process_message(msg)
-        if msg.type not in ['note_on', 'note_off']:
-            self.output_manager.send_to_all(msg, except=port)
+        # if msg.type not in ['note_on', 'note_off']:
+        #     self.output_manager.send_to_all(msg, except=port.name)
