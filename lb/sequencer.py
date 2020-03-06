@@ -201,3 +201,8 @@ class Sequencer:
                 if event.message.type == 'note_off':
                     if event.message.note in m:
                         del m[event.message.note]
+
+    def quantize(self):
+        q = self.app.tempo.q_to_time((1, 2, 1))
+        for x in self.events:
+            x.time = round(x.time / q) * q

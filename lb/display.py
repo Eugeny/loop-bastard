@@ -195,6 +195,8 @@ class Display(threading.Thread):
                             self.app.sequencer.stop()
                         if event.key == pygame.K_e:
                             self.app.sequencer.record()
+                        if event.key == pygame.K_t:
+                            self.app.sequencer.quantize()
                         if event.key == pygame.K_m:
                             self.app.tempo.enable_metronome = not self.app.tempo.enable_metronome
                     if event.type == pygame.QUIT:
