@@ -21,15 +21,6 @@ class Display(threading.Thread):
     def __init__(self, app):
         super().__init__(daemon=True)
         self.app = app
-        pygame.init()
-        self.screen = pygame.display.set_mode((800, 400))
-        self.font = pygame.font.Font('bryant.ttf', 10)
-        self.img_midi_in = pygame.image.load('images/midi-in.png')
-        self.img_midi_out = pygame.image.load('images/midi-out.png')
-        self.img_midi_in_disconnected = self.img_midi_in.copy()
-        self.img_midi_in_disconnected.fill((255, 0, 0), special_flags=pygame.BLEND_MULT)
-        self.img_midi_out_disconnected = self.img_midi_out.copy()
-        self.img_midi_out_disconnected.fill((255, 0, 0), special_flags=pygame.BLEND_MULT)
 
         self.had_midi_in_activity = False
         self.had_midi_out_activity = False
@@ -162,6 +153,17 @@ class Display(threading.Thread):
         )
 
     def run(self):
+        pygame.init()
+        pygame.mouse.set_visible(0)
+        self.screen = pygame.display.set_mode((800, 400))
+        self.font = pygame.font.Font('bryant.ttf', 10)
+        self.img_midi_in = pygame.image.load('images/midi-in.png')
+        self.img_midi_out = pygame.image.load('images/midi-out.png')
+        self.img_midi_in_disconnected = self.img_midi_in.copy()
+        self.img_midi_in_disconnected.fill((255, 0, 0), special_flags=pygame.BLEND_MULT)
+        self.img_midi_out_disconnected = self.img_midi_out.copy()
+        self.img_midi_out_disconnected.fill((255, 0, 0), special_flags=pygame.BLEND_MULT)
+
         while True:
             self.screen.fill((0, 0, 20))
 
@@ -177,4 +179,4 @@ class Display(threading.Thread):
             pygame.display.flip()
             self.had_midi_in_activity = False
             self.had_midi_out_activity = False
-            time.sleep(1 / 60)
+            pygame.mainloop(1 / 60)
