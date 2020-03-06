@@ -19,7 +19,7 @@ class App:
 
         self.sequencer = Sequencer(self)
 
-        self.input_manager.message.subscribe(lambda port, msg: self.process_message(port, msg))
+        self.input_manager.message.subscribe(lambda x: self.process_message(x[0], x[1]))
         self.sequencer.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
 
         self.display = Display(self)

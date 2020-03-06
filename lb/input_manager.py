@@ -14,7 +14,7 @@ class MidiReceiver(threading.Thread):
 
     def run(self):
         for port, message in multi_receive(self.ports, yield_ports=True):
-            self.message.on_next((port, message))
+            self.message.on_next([port, message])
             print('{} -> {}'.format(port, message))
             if self.stop_flag:
                 break
@@ -37,7 +37,7 @@ class InputManager(threading.Thread):
 
     def run(self):
         while True:
-            ports = mido.get_input_names()
+            ports = [x for x in mido.get_input_names() if 'Through' not in x]
             if ports != self.known_ports:
                 if self.receiver_thread:
                     self.receiver_thread.stop()
