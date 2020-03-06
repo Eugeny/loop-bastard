@@ -179,4 +179,24 @@ class Display(threading.Thread):
             pygame.display.flip()
             self.had_midi_in_activity = False
             self.had_midi_out_activity = False
-            pygame.mainloop(1 / 60)
+
+            try:
+                while True:
+                    time.sleep(1 / 60)
+                    for event in pygame.event.get():
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_r:
+                                self.app.sequencer.reset()
+                            if event.key == pygame.K_q:
+                                self.app.sequencer.start()
+                            if event.key == pygame.K_w:
+                                self.app.sequencer.stop()
+                            if event.key == pygame.K_e:
+                                self.app.sequencer.record()
+                            if event.key == pygame.K_m:
+                                self.app.tempo.enable_metronome = not self.app.tempo.enable_metronome
+                        if event.type == pygame.QUIT:
+                            sys.exit()
+
+            except KeyboardInterrupt:
+                sys.exit(0)

@@ -23,28 +23,7 @@ class App:
         self.sequencer.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
 
         self.display = Display(self)
-        self.display.start()
-
-        try:
-            while True:
-                time.sleep(0.1)
-                for event in pygame.event.get():
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_r:
-                            self.sequencer.reset()
-                        if event.key == pygame.K_q:
-                            self.sequencer.start()
-                        if event.key == pygame.K_w:
-                            self.sequencer.stop()
-                        if event.key == pygame.K_e:
-                            self.sequencer.record()
-                        if event.key == pygame.K_m:
-                            self.tempo.enable_metronome = not self.tempo.enable_metronome
-                    if event.type == pygame.QUIT:
-                        sys.exit()
-
-        except KeyboardInterrupt:
-            sys.exit(0)
+        self.display.run()
 
     def process_message(self, msg):
         self.sequencer.process_message(msg)
