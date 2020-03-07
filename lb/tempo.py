@@ -8,7 +8,7 @@ class Tempo(threading.Thread):
     bars = 4
     bpm = 120
     start_time = 0
-    enable_metronome = True
+    enable_metronome = False
 
     def __init__(self):
         super().__init__(daemon=True)
@@ -41,11 +41,15 @@ class Tempo(threading.Thread):
 
     def q_to_time(self, q):
         beat_len = self.get_beat_length()
-        return (q[0] - 1) * self.bar_size * self.bars * beat_len + (q[1] - 1) * \
-            self.bar_size * beat_len + (q[2] - 1) * beat_len
+        bar_len = self.get_bar_length()
+        return (q[0] - 1) * bar_len * self.bars + (q[1] - 1) * \
+            bar_len + (q[2] - 1) * beat_len
 
     def get_beat_length(self):
         return 60 / self.bpm
+
+    def get_bar_length(self):
+        return 60 / self.bpm * self.bar_size
 
     def run(self):
         while True:
