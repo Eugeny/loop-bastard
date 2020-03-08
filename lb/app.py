@@ -82,10 +82,12 @@ class App:
             'note': [],
         }
         self.current_param = {
-            'sequencer': self.app.scope_params['sequencer'][0],
+            'sequencer': self.scope_params['sequencer'][0],
         }
 
 
+        self.controls.rotary_param.left.subscribe(lambda _: self.param_prev())
+        self.controls.rotary_param.right.subscribe(lambda _: self.param_next())
         self.controls.rotary_value.left.subscribe(lambda _: self.value_dec())
         self.controls.rotary_value.right.subscribe(lambda _: self.value_inc())
 

@@ -18,9 +18,9 @@ class Rotary:
     def update(self):
         clk = GPIO.input(self.gpio_clk)
         dt = GPIO.input(self.gpio_dt)
-        if not clk and dt:
-            self.pending = 'left'
         if clk and not dt:
+            self.pending = 'left'
+        if not clk and dt:
             self.pending = 'right'
         if clk and dt:
             if self.pending == 'left':
@@ -36,9 +36,11 @@ class Controls(threading.Thread):
         super().__init__(daemon=True)
         self.app = app
         GPIO.setmode(GPIO.BCM)
+        self.rotary_param = Rotary(13, 26)
         self.rotary_value = Rotary(5, 6)
         self.items = [
-            self.rotary_value
+            self.rotary_param,
+            self.rotary_value,
         ]
 
     def run(self):
