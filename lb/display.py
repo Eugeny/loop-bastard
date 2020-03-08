@@ -30,10 +30,6 @@ class Display(threading.Thread):
         self.app.input_manager.message.subscribe(lambda _: self._on_midi_in())
         self.app.output_manager.message.subscribe(lambda _: self._on_midi_out())
 
-        self.current_param = {
-            'sequencer': self.app.scope_params['sequencer'][0],
-        }
-
     def _on_midi_in(self):
         self.had_midi_in_activity = True
 
@@ -50,7 +46,7 @@ class Display(threading.Thread):
     def draw_param_selector(self, surface):
         w, h = surface.get_size()
 
-        param = self.current_param[self.app.current_scope]
+        param = self.app.current_param[self.app.current_scope]
 
         pygame.draw.rect(
             surface,
@@ -74,7 +70,7 @@ class Display(threading.Thread):
     def draw_param_value(self, surface):
         w, h = surface.get_size()
 
-        param = self.current_param[self.app.current_scope]
+        param = self.app.current_param[self.app.current_scope]
 
         pygame.draw.rect(
             surface,
@@ -427,22 +423,6 @@ class Display(threading.Thread):
                             self.app.select_sequencer(self.app.sequencers[2])
                         if event.key == pygame.K_4:
                             self.app.select_sequencer(self.app.sequencers[3])
-                        if event.key == pygame.K_UP:
-                            i = self.app.scope_params[self.app.current_scope].index(self.current_param[self.app.current_scope])
-                            i = max(0, i - 1)
-                            self.current_param[self.app.current_scope] = self.app.scope_params[self.app.current_scope][i]
-                        if event.key == pygame.K_DOWN:
-                            i = self.app.scope_params[self.app.current_scope].index(self.current_param[self.app.current_scope])
-                            i = min(len(self.app.scope_params[self.app.current_scope]) - 1, i + 1)
-                            self.current_param[self.app.current_scope] = self.app.scope_params[self.app.current_scope][i]
-                        if event.key == pygame.K_LEFT:
-                            i = self.current_param[self.app.current_scope].options.index(self.current_param[self.app.current_scope].get())
-                            i = max(0, i - 1)
-                            self.current_param[self.app.current_scope].set(self.current_param[self.app.current_scope].options[i])
-                        if event.key == pygame.K_RIGHT:
-                            i = self.current_param[self.app.current_scope].options.index(self.current_param[self.app.current_scope].get())
-                            i = min(len(self.current_param[self.app.current_scope].options) - 1, i + 1)
-                            self.current_param[self.app.current_scope].set(self.current_param[self.app.current_scope].options[i])
                     if event.type == pygame.QUIT:
                         sys.exit()
 

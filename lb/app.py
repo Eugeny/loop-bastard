@@ -50,7 +50,7 @@ class App:
         self.output_manager.start()
         self.tempo = Tempo()
         self.tempo.start()
-        self.controls = Controls()
+        self.controls = Controls(self)
         self.controls.start()
         self.selected_sequencer = None
 
@@ -81,6 +81,10 @@ class App:
             ],
             'note': [],
         }
+        self.current_param = {
+            'sequencer': self.app.scope_params['sequencer'][0],
+        }
+
 
         self.controls.rotary_value.left.subscribe(lambda _: self.value_dec())
         self.controls.rotary_value.right.subscribe(lambda _: self.value_inc())
@@ -103,8 +107,22 @@ class App:
         for s in self.sequencers:
             s.process_message(msg)
 
+    def param_prev(self):
+        i = self.scope_params[self.current_scope].index(self.current_param[self.current_scope])
+        i = max(0, i - 1)
+        self.current_param[self.current_scope] = self.scope_params[self.current_scope][i]
+
+    def param_next(self):
+        i = self.scope_params[self.current_scope].index(self.current_param[self.current_scope])
+        i = min(len(self.scope_params[self.current_scope]) - 1, i + 1)
+        self.current_param[self.current_scope] = self.scope_params[self.current_scope][i]
+
     def value_dec(self):
-        print('-')
+        i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
+        i = max(0, i - 1)
+        self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
 
     def value_inc(self):
-        print('+')
+        i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
+        i = min(len(self.current_param[self.current_scope].options) - 1, i + 1)
+        self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
