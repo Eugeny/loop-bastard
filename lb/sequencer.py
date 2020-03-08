@@ -47,7 +47,7 @@ class SequencerPlayer(threading.Thread):
     def run(self):
         last_time = 0
         next_time = 0
-        cycle_len = self.app.tempo.get_beat_length() / 100
+        cycle_len = self.sequencer.app.tempo.get_beat_length() / 100
         while True:
             next_time = self.sequencer.get_time() + cycle_len
             next_wall_time = time.time() + cycle_len

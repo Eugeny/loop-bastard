@@ -63,6 +63,8 @@ class Controls(threading.Thread):
             self.stop_button,
             self.clear_button,
             self.record_button,
+            self.s_1_button,
+            self.s_2_button,
             self.rotary_param,
             self.rotary_value,
         ]
