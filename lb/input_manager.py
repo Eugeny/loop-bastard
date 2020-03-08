@@ -53,5 +53,12 @@ class InputManager(threading.Thread):
 
                 self.receiver_thread = MidiReceiver(ports)
                 self.receiver_thread.start()
-                self.receiver_thread.message.subscribe(lambda m: self.message.on_next(m))
+
+                def on_msg(msg):
+                    for x in self.app.output_manager.recently_sent:
+                        if x[1] == msg and time.time() - x[0] < 0.1:
+                            return
+                    self.message.on_next(msg)
+
+                self.receiver_thread.message.subscribe(on_msg)
             time.sleep(0.1)

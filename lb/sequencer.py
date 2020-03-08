@@ -232,7 +232,7 @@ class Sequencer:
                         )
                         del self.open_note_on_events[message.note]
                         self.events.append(event)
-                    if message.note in self.currently_on[message.note]:
+                    if message.note in self.currently_on:
                         del self.currently_on[message.note]
 
             self.cleanup()

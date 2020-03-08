@@ -10,6 +10,7 @@ class OutputManager(threading.Thread):
         self.known_ports = []
         self.open_ports = {}
         self.message = Subject()
+        self.recently_sent = []
 
     def has_output(self):
         return len(self.known_ports) > 0
@@ -37,3 +38,5 @@ class OutputManager(threading.Thread):
         print('Sent', message)
         for port in self.open_ports.values():
             port.send(message)
+        self.recently_sent.append((time.time(), message))
+        self.recently_sent = self.recently_sent[-50:]
