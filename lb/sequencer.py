@@ -47,9 +47,10 @@ class SequencerPlayer(threading.Thread):
     def run(self):
         last_time = 0
         next_time = 0
+        cycle_len = self.app.tempo.get_beat_length() / 100
         while True:
-            next_time = self.sequencer.get_time() + 1 / 400
-            next_wall_time = time.time() + 1 / 400
+            next_time = self.sequencer.get_time() + cycle_len
+            next_wall_time = time.time() + cycle_len
 
             for event in self.sequencer.events:
                 if (event.time >= last_time and event.time < next_time) or (event.time - self.sequencer.get_length() >= last_time and event.time - self.sequencer.get_length() < next_time):
