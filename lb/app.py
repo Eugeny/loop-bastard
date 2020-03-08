@@ -90,10 +90,10 @@ class App:
         s.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
 
     def select_sequencer(self, s):
+        self.selected_sequencer.thru = False
         self.selected_sequencer = s
+        self.selected_sequencer.thru = True
 
     def process_message(self, port, msg):
         for s in self.sequencers:
             s.process_message(msg)
-        if msg.type in ['note_on', 'note_off']:
-            self.output_manager.send_to_all(msg)

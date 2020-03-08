@@ -82,6 +82,7 @@ class Sequencer:
         self.quantizer_div = 8
 
         self.output_channel = 1
+        self.thru = False
 
         self.currently_on = {}
 
@@ -153,7 +154,9 @@ class Sequencer:
             self.output_message(mido.Message(type='note_off', note=n))
 
     def output_message(self, message: mido.Message):
-        message.channel = self.output_channel
+        print(message)
+        message = message.copy(channel=self.output_channel)
+        print(message)
         self.output.on_next(message)
 
         if message.type == 'note_on':
@@ -210,6 +213,10 @@ class Sequencer:
         return event in self.open_note_on_events.values()
 
     def process_message(self, message):
+        if self.thru:
+            if message.type in ['note_on', 'note_off']:
+                self.app.output_manager.send_to_all(message)
+
         if not self.recording:
             return
 
