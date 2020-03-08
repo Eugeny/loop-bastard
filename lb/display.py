@@ -388,8 +388,6 @@ class Display(threading.Thread):
                 time.sleep(1 / 60)
                 for event in pygame.event.get():
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_r:
-                            self.app.selected_sequencer.reset()
                         if event.key == pygame.K_t:
                             self.app.selected_sequencer.quantize()
                         if event.key == pygame.K_m:

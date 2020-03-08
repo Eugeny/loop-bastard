@@ -7,11 +7,11 @@ from .display import Display
 
 
 class MetromoneParam:
-    name = 'Metronome'
+    name = 'M/nome'
 
     def __init__(self, app):
         self.app = app
-        self.options = [True, False]
+        self.options = [False, True]
 
     def get(self):
         return self.app.tempo.enable_metronome
@@ -76,16 +76,17 @@ class App:
 
         self.input_manager.message.subscribe(lambda x: self.process_message(x[0], x[1]))
 
-        for i in range(16):
-            import mido
-            from lb.sequencer import SequencerEvent
-            self.sequencers[0].events.append(
-                SequencerEvent(message=mido.Message('note_on', note=64+i), time=i/3.7),
-            )
-            self.sequencers[0].events.append(
-                SequencerEvent(message=mido.Message('note_off', note=64+i), time=i/3.7+.35),
-            )
-        self.sequencers[0].cleanup()
+        if False:
+            for i in range(16):
+                import mido
+                from lb.sequencer import SequencerEvent
+                self.sequencers[0].events.append(
+                    SequencerEvent(message=mido.Message('note_on', note=64+i), time=i/3.7),
+                )
+                self.sequencers[0].events.append(
+                    SequencerEvent(message=mido.Message('note_off', note=64+i), time=i/3.7+.35),
+                )
+            self.sequencers[0].cleanup()
 
         self.current_scope = 'sequencer'
         self.scope_params = {
@@ -110,6 +111,9 @@ class App:
         self.controls.play_button.press.subscribe(lambda _: self.on_play())
         self.controls.stop_button.press.subscribe(lambda _: self.on_stop())
         self.controls.record_button.press.subscribe(lambda _: self.on_record())
+        self.controls.reset_button.press.subscribe(lambda _: self.on_reset())
+        self.controls.s_1_button.press.subscribe(lambda _: self.select_sequencer(self.sequencers[0]))
+        self.controls.s_2_button.press.subscribe(lambda _: self.select_sequencer(self.sequencers[1]))
 
         self.display = Display(self)
         self.display.run()
@@ -166,3 +170,6 @@ class App:
             for s in self.sequencers:
                 if s != self.selected_sequencer:
                     s.schedule_stop()
+
+    def on_reset(self):
+        self.selected_sequencer.reset()
