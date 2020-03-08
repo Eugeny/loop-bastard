@@ -40,7 +40,7 @@ class QuantizerParam:
         self.app.selected_sequencer.quantizer_div = v
 
     def ok(self):
-        self.app.sequencers.quantize()
+        self.app.selected_sequencer.quantize()
 
     def __str__(self):
         return f'1/{self.get()}'

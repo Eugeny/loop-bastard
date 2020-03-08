@@ -387,25 +387,14 @@ class Display(threading.Thread):
             try:
                 time.sleep(1 / 60)
                 for event in pygame.event.get():
+                    self.app.controls.process_event(event)
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_t:
-                            self.app.selected_sequencer.quantize()
-                        if event.key == pygame.K_m:
-                            self.app.tempo.enable_metronome = not self.app.tempo.enable_metronome
                         if event.key == pygame.K_z:
                             self.app.current_scope = 'global'
                         if event.key == pygame.K_x:
                             self.app.current_scope = 'sequencer'
                         if event.key == pygame.K_c:
                             self.app.current_scope = 'note'
-                        if event.key == pygame.K_1:
-                            self.app.select_sequencer(self.app.sequencers[0])
-                        if event.key == pygame.K_2:
-                            self.app.select_sequencer(self.app.sequencers[1])
-                        if event.key == pygame.K_3:
-                            self.app.select_sequencer(self.app.sequencers[2])
-                        if event.key == pygame.K_4:
-                            self.app.select_sequencer(self.app.sequencers[3])
                     if event.type == pygame.QUIT:
                         sys.exit()
 
