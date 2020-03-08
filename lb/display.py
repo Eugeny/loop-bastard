@@ -43,73 +43,118 @@ class Display(threading.Thread):
         if type == 'fast':
             return 255 * int((time.time() % 0.125 * 8) * 1.9)
 
-    def draw_param_selector(self, surface):
+    def _draw_list(self, surface, items=None, index=None, bg=None, fg=None):
         w, h = surface.get_size()
 
+        item_count = 3
+        selected_position = 1
+        display_items = [None] * item_count
+        for i in range(item_count):
+            src_index = i + index - selected_position
+            if src_index >= 0 and src_index < len(items):
+                display_items[i] = items[src_index]
+
+        item_h = h // item_count
+        for i in range(item_count):
+            if display_items[i]:
+                text_w = self.font.size(display_items[i])[0]
+                rect = (5, i * item_h, w - 10, item_h)
+                if i == selected_position:
+                    surface.fill(fg, rect)
+                surface.blit(self.font.render(
+                    display_items[i],
+                    True,
+                    bg if i == selected_position else fg,
+                ), (w // 2 - text_w // 2, rect[1]))
+
+    def draw_param_selector(self, surface):
+        w, h = surface.get_size()
+        bg = (32, 64, 128)
+        fg = (64, 128, 255)
+
         param = self.app.current_param[self.app.current_scope]
+        params = self.app.scope_params[self.app.current_scope]
 
-        pygame.draw.rect(
-            surface,
-            (32, 64, 128),
-            (0, 0, w, h),
-        )
-        pygame.draw.rect(
-            surface,
-            (64, 128, 255),
-            (0, 0, w, h),
-            5,
+        # pygame.draw.rect(
+        #     surface,
+        #     bg,
+        #     (0, 0, w, h),
+        # )
+        # pygame.draw.rect(
+        #     surface,
+        #     fg,
+        #     (0, 0, w, h),
+        #     5,
+        # )
+
+        self._draw_list(
+            surface.subsurface((0, 0, w, h)),
+            items=[x.name for x in params],
+            index=params.index(param),
+            bg=(0, 0, 0), fg=fg,
         )
 
-        text_w = self.font.size(param.name)[0]
-        surface.blit(self.font.render(
-            param.name,
-            True,
-            (255, 255, 255)
-        ), (w // 2 - text_w // 2, h - 40))
+        # text_w = self.font.size(param.name)[0]
+        # surface.blit(self.font.render(
+        #     param.name,
+        #     True,
+        #     (255, 255, 255)
+        # ), (w // 4 - text_w // 2, h - 40))
 
     def draw_param_value(self, surface):
         w, h = surface.get_size()
 
         param = self.app.current_param[self.app.current_scope]
+        bg = (128, 64, 32)
+        fg = (255, 128, 64)
 
-        pygame.draw.rect(
-            surface,
-            (128, 64, 32),
-            (0, 0, w, h),
-        )
-        pygame.draw.rect(
-            surface,
-            (255, 128, 64),
-            (0, 0, w, h),
-            5,
-        )
+        # pygame.draw.rect(
+        #     surface,
+        #     bg,
+        #     (0, 0, w, h),
+        # )
+        # pygame.draw.rect(
+        #     surface,
+        #     fg,
+        #     (0, 0, w, h),
+        #     5,
+        # )
 
-        text_w = self.font.size(str(param))[0]
-        surface.blit(self.font.render(
-            str(param),
-            True,
-            (255, 255, 255)
-        ), (w // 2 - text_w // 2, h - 40))
+        if param.type == 'list':
+            self._draw_list(
+                surface.subsurface((5, 5, w - 10, h - 10)),
+                items=[param.to_str(x) for x in param.options],
+                index=param.options.index(param.get()),
+                bg=(0, 0, 0), fg=fg,
+            )
 
-        def index_to_angle(i):
-            return -1.5 + 3 * i / (len(param.options) - 1)
+        if param.type == 'dial':
+            text_w = self.font.size(param.to_str(param.get()))[0]
+            surface.blit(self.font.render(
+                param.to_str(param.get()),
+                True,
+                (255, 255, 255)
+            ), (w // 2 - text_w // 2, h - 40))
 
-        for i in range(0, len(param.options)):
+            def index_to_angle(i):
+                return -1.5 + 3 * i / (len(param.options) - 1)
+
+            for i in range(0, len(param.options)):
+                pygame.draw.line(
+                    surface,
+                    (255, 128, 64),
+                    (w / 2 + 30 * math.sin(index_to_angle(i)), h / 2 - 30 * math.cos(index_to_angle(i))),
+                    (w / 2 + 40 * math.sin(index_to_angle(i)), h / 2 - 40 * math.cos(index_to_angle(i))),
+                    3,
+                )
+            option_index = param.options.index(param.get())
             pygame.draw.line(
                 surface,
-                (255, 128, 64),
-                (w / 2 + 30 * math.sin(index_to_angle(i)), h / 2 - 30 * math.cos(index_to_angle(i))),
-                (w / 2 + 40 * math.sin(index_to_angle(i)), h / 2 - 40 * math.cos(index_to_angle(i))),
-                3,
+                (255, 255, 255),
+                (w / 2 + 20 * math.sin(index_to_angle(option_index)), h / 2 - 20 * math.cos(index_to_angle(option_index))),
+                (w / 2 + 40 * math.sin(index_to_angle(option_index)), h / 2 - 40 * math.cos(index_to_angle(option_index))),
+                5,
             )
-        option_index = param.options.index(param.get())
-        pygame.draw.line(
-            surface,
-            (255, 255, 255),
-            (w / 2 + 20 * math.sin(index_to_angle(option_index)), h / 2 - 20 * math.cos(index_to_angle(option_index))),
-            (w / 2 + 40 * math.sin(index_to_angle(option_index)), h / 2 - 40 * math.cos(index_to_angle(option_index))),
-            5,
-        )
 
     def draw_status_bar(self, surface):
         surface.fill((128, 128, 128), rect=(5, surface.get_height() - 2, surface.get_width() - 10, 2))
@@ -208,17 +253,24 @@ class Display(threading.Thread):
         )
         self.img_play.set_alpha(64)
         surface.blit(self.img_play, (0, 0))
-        if sequencer.start_scheduled:
-            self.img_play_active.set_alpha(self.get_blink('fast'))
-            surface.blit(self.img_play_active, (0, 0))
-        elif sequencer.running:
-            self.img_play_active.set_alpha(self.get_blink('beat'))
-            surface.blit(self.img_play_active, (0, 0))
+        if not sequencer.recording:
+            if sequencer.start_scheduled:
+                self.img_play_active.set_alpha(self.get_blink('fast'))
+                surface.blit(self.img_play_active, (0, 0))
+            elif sequencer.running:
+                self.img_play_active.set_alpha(self.get_blink('beat'))
+                surface.blit(self.img_play_active, (0, 0))
+
         self.img_record.set_alpha(64)
         surface.blit(self.img_record, (0, 64))
         if sequencer.recording:
-            self.img_record_active.set_alpha(self.get_blink('beat'))
+            a = self.get_blink('beat')
+            if sequencer.start_scheduled:
+                a = self.get_blink('fast')
+
+            self.img_record_active.set_alpha(a)
             surface.blit(self.img_record_active, (0, 64))
+
             a = self.get_blink('beat')
             pygame.draw.rect(
                 surface, (a, 0, 0), (0, 0, w, h), 4
@@ -373,11 +425,11 @@ class Display(threading.Thread):
                 )
 
             self.draw_param_selector(
-                self.screen.subsurface((self.screen.get_width() - 10 - 220, 50, 100, 100))
+                self.screen.subsurface((self.screen.get_width() - 10 - 215, 50, 110, 100))
             )
 
             self.draw_param_value(
-                self.screen.subsurface((self.screen.get_width() - 10 - 110, 50, 100, 100))
+                self.screen.subsurface((self.screen.get_width() - 10 - 100, 50, 100, 100))
             )
 
             pygame.display.flip()

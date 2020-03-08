@@ -7,7 +7,8 @@ from .display import Display
 
 
 class MetronomeParam:
-    name = 'M/nome'
+    name = 'Metr.'
+    type = 'list'
 
     def __init__(self, app):
         self.app = app
@@ -22,12 +23,13 @@ class MetronomeParam:
     def ok(self):
         self.app.tempo.enable_metronome = not self.app.tempo.enable_metronome
 
-    def __str__(self):
-        return 'On' if self.get() else 'Off'
+    def to_str(self, v):
+        return 'On' if v else 'Off'
 
 
 class QuantizerParam:
-    name = 'Q size'
+    name = 'Quant.'
+    type = 'list'
 
     def __init__(self, app):
         self.app = app
@@ -42,12 +44,13 @@ class QuantizerParam:
     def ok(self):
         self.app.selected_sequencer.quantize()
 
-    def __str__(self):
-        return f'1/{self.get()}'
+    def to_str(self, v):
+        return f'1/{v}'
 
 
 class LengthParam:
     name = 'Length'
+    type = 'dial'
 
     def __init__(self, app):
         self.app = app
@@ -62,8 +65,8 @@ class LengthParam:
     def ok(self):
         pass
 
-    def __str__(self):
-        return f'{self.get()} bars'
+    def to_str(self, v):
+        return f'{v} bars'
 
 
 class App:
@@ -167,6 +170,10 @@ class App:
         self.current_param[self.current_scope].ok()
 
     def on_play(self):
+        if self.selected_sequencer.running:
+            if self.selected_sequencer.recording:
+                self.selected_sequencer.stop_recording()
+                return
         self.selected_sequencer.schedule_start()
         for s in self.sequencers:
             if s != self.selected_sequencer:
