@@ -54,6 +54,7 @@ class Controls(threading.Thread):
         self.stop_button = Button(20)
         self.record_button = Button(16)
         self.clear_button = Button(19)
+        self.ok_button = Button(2)
         self.s_1_button = Button(17)
         self.s_2_button = Button(27)
         self.rotary_param = Rotary(26, 13)
@@ -63,6 +64,7 @@ class Controls(threading.Thread):
             self.stop_button,
             self.clear_button,
             self.record_button,
+            self.ok_button,
             self.s_1_button,
             self.s_2_button,
             self.rotary_param,

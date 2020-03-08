@@ -6,7 +6,7 @@ from .tempo import Tempo
 from .display import Display
 
 
-class MetromoneParam:
+class MetronomeParam:
     name = 'M/nome'
 
     def __init__(self, app):
@@ -18,6 +18,9 @@ class MetromoneParam:
 
     def set(self, v):
         self.app.tempo.enable_metronome = v
+
+    def ok(self):
+        self.app.tempo.enable_metronome = not self.app.tempo.enable_metronome
 
     def __str__(self):
         return 'On' if self.get() else 'Off'
@@ -36,6 +39,9 @@ class QuantizerParam:
     def set(self, v):
         self.app.selected_sequencer.quantizer_div = v
 
+    def ok(self):
+        self.app.sequencers.quantize()
+
     def __str__(self):
         return f'1/{self.get()}'
 
@@ -52,6 +58,9 @@ class LengthParam:
 
     def set(self, v):
         self.app.selected_sequencer.bars = v
+
+    def ok(self):
+        pass
 
     def __str__(self):
         return f'{self.get()} bars'
@@ -91,10 +100,10 @@ class App:
         self.current_scope = 'sequencer'
         self.scope_params = {
             'global': [
-                MetromoneParam(self),
+                MetronomeParam(self),
             ],
             'sequencer': [
-                MetromoneParam(self),
+                MetronomeParam(self),
                 QuantizerParam(self),
                 LengthParam(self),
             ],
@@ -114,6 +123,7 @@ class App:
         self.controls.clear_button.press.subscribe(lambda _: self.on_clear())
         self.controls.s_1_button.press.subscribe(lambda _: self.select_sequencer(self.sequencers[0]))
         self.controls.s_2_button.press.subscribe(lambda _: self.select_sequencer(self.sequencers[1]))
+        self.controls.ok_button.press.subscribe(lambda _: self.on_ok())
 
         self.display = Display(self)
         self.display.run()
@@ -152,6 +162,9 @@ class App:
         i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
         i = min(len(self.current_param[self.current_scope].options) - 1, i + 1)
         self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
+
+    def on_ok(self):
+        self.current_param[self.current_scope].ok()
 
     def on_play(self):
         self.selected_sequencer.schedule_start()
