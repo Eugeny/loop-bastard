@@ -27,8 +27,9 @@ class MidiReceiver(threading.Thread):
 class InputManager(threading.Thread):
     message = Subject()
 
-    def __init__(self):
+    def __init__(self, app):
         super().__init__(daemon=True)
+        self.app = app
         self.known_ports = []
         self.receiver_thread = None
 

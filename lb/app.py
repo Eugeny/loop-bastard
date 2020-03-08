@@ -47,7 +47,7 @@ class LengthParam:
 
 class App:
     def __init__(self):
-        self.input_manager = InputManager()
+        self.input_manager = InputManager(self)
         self.input_manager.start()
         self.output_manager = OutputManager()
         self.output_manager.start()
