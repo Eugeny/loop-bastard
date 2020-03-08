@@ -12,7 +12,7 @@ class Button:
         self.last = GPIO.input(pin)
 
     def update(self):
-        v = GPIO.input(self.pin_clk)
+        v = GPIO.input(self.pin)
         if v and not self.last:
             self.press.on_next(None)
         self.last = v

@@ -6,9 +6,25 @@ from .tempo import Tempo
 from .display import Display
 
 
+class MetromoneParam:
+    name = 'Metronome'
+
+    def __init__(self, app):
+        self.app = app
+        self.options = [True, False]
+
+    def get(self):
+        return self.app.tempo.enable_metronome
+
+    def set(self, v):
+        self.app.tempo.enable_metronome = v
+
+    def __str__(self):
+        return 'On' if self.get() else 'Off'
+
+
 class QuantizerParam:
     name = 'Q size'
-    type = 'pow2'
 
     def __init__(self, app):
         self.app = app
@@ -26,7 +42,6 @@ class QuantizerParam:
 
 class LengthParam:
     name = 'Length'
-    type = 'int'
 
     def __init__(self, app):
         self.app = app
@@ -74,8 +89,11 @@ class App:
 
         self.current_scope = 'sequencer'
         self.scope_params = {
-            'global': [],
+            'global': [
+                MetromoneParam(self),
+            ],
             'sequencer': [
+                MetromoneParam(self),
                 QuantizerParam(self),
                 LengthParam(self),
             ],

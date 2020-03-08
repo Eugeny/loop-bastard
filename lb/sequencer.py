@@ -38,6 +38,7 @@ class SequencerPlayer(threading.Thread):
             if wait_time > 0:
                 time.sleep(wait_time)
             if self.stop_flag:
+                self.sequencer.off_everything()
                 break
 
             self.sequencer.output_message(event.message)
@@ -47,8 +48,8 @@ class SequencerPlayer(threading.Thread):
         last_time = 0
         next_time = 0
         while True:
-            next_time = self.sequencer.get_time() + 1 / 200
-            next_wall_time = time.time() + 1 / 200
+            next_time = self.sequencer.get_time() + 1 / 400
+            next_wall_time = time.time() + 1 / 400
 
             for event in self.sequencer.events:
                 if (event.time >= last_time and event.time < next_time) or (event.time - self.sequencer.get_length() >= last_time and event.time - self.sequencer.get_length() < next_time):
@@ -58,6 +59,7 @@ class SequencerPlayer(threading.Thread):
             if wait_time > 0:
                 time.sleep(wait_time)
             if self.stop_flag:
+                self.sequencer.off_everything()
                 break
 
             last_time = self.sequencer.normalize_time(next_time)
@@ -151,6 +153,9 @@ class Sequencer:
             self.player_thread.stop()
             self.player_thread = None
 
+        self.off_everything()
+
+    def off_everything(self):
         for n in list(self.currently_on.keys()):
             self.output_message(mido.Message(type='note_off', note=n))
 
