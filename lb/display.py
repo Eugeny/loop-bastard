@@ -390,21 +390,6 @@ class Display(threading.Thread):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
                             self.app.selected_sequencer.reset()
-                        if event.key == pygame.K_q:
-                            self.app.selected_sequencer.schedule_start()
-                            for s in self.app.sequencers:
-                                if s != self.app.selected_sequencer:
-                                    s.schedule_stop()
-                        if event.key == pygame.K_w:
-                            self.app.selected_sequencer.schedule_stop()
-                        if event.key == pygame.K_e:
-                            if self.app.selected_sequencer.recording:
-                                self.app.selected_sequencer.stop_recording()
-                            else:
-                                self.app.selected_sequencer.schedule_record()
-                                for s in self.app.sequencers:
-                                    if s != self.app.selected_sequencer:
-                                        s.schedule_stop()
                         if event.key == pygame.K_t:
                             self.app.selected_sequencer.quantize()
                         if event.key == pygame.K_m:

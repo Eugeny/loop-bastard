@@ -85,11 +85,13 @@ class App:
             'sequencer': self.scope_params['sequencer'][0],
         }
 
-
         self.controls.rotary_param.left.subscribe(lambda _: self.param_prev())
         self.controls.rotary_param.right.subscribe(lambda _: self.param_next())
         self.controls.rotary_value.left.subscribe(lambda _: self.value_dec())
         self.controls.rotary_value.right.subscribe(lambda _: self.value_inc())
+        self.controls.play_button.press.subscribe(lambda _: self.on_play())
+        self.controls.stop_button.press.subscribe(lambda _: self.on_stop())
+        self.controls.record_button.press.subscribe(lambda _: self.on_record())
 
         self.display = Display(self)
         self.display.run()
@@ -128,3 +130,21 @@ class App:
         i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
         i = min(len(self.current_param[self.current_scope].options) - 1, i + 1)
         self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
+
+    def on_play(self):
+        self.selected_sequencer.schedule_start()
+        for s in self.sequencers:
+            if s != self.selected_sequencer:
+                s.schedule_stop()
+
+    def on_stop(self):
+        self.selected_sequencer.schedule_stop()
+
+    def on_record(self):
+        if self.selected_sequencer.recording:
+            self.selected_sequencer.stop_recording()
+        else:
+            self.selected_sequencer.schedule_record()
+            for s in self.sequencers:
+                if s != self.selected_sequencer:
+                    s.schedule_stop()
