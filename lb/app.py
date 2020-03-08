@@ -1,7 +1,4 @@
-import pygame
-import time
-import sys
-from dataclasses import dataclass
+from .controls import Controls
 from .input_manager import InputManager
 from .output_manager import OutputManager
 from .sequencer import Sequencer
@@ -53,6 +50,9 @@ class App:
         self.output_manager.start()
         self.tempo = Tempo()
         self.tempo.start()
+        self.controls = Controls()
+        self.controls.start()
+        self.selected_sequencer = None
 
         self.sequencers = []
         for i in range(4):
@@ -81,6 +81,10 @@ class App:
             ],
             'note': [],
         }
+
+        self.controls.rotary_value.left.subscribe(lambda _: self.value_dec())
+        self.controls.rotary_value.right.subscribe(lambda _: self.value_inc())
+
         self.display = Display(self)
         self.display.run()
 
@@ -90,10 +94,17 @@ class App:
         s.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
 
     def select_sequencer(self, s):
-        self.selected_sequencer.thru = False
+        if self.selected_sequencer:
+            self.selected_sequencer.thru = False
         self.selected_sequencer = s
         self.selected_sequencer.thru = True
 
     def process_message(self, port, msg):
         for s in self.sequencers:
             s.process_message(msg)
+
+    def value_dec(self):
+        print('-')
+
+    def value_inc(self):
+        print('+')

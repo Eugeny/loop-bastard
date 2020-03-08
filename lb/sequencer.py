@@ -100,6 +100,7 @@ class Sequencer:
         return self.app.tempo.pos_to_q(self.app.tempo.time_to_pos(self.get_time()))
 
     def reset(self):
+        self.stop()
         with self.lock:
             self.events = []
 
@@ -154,9 +155,7 @@ class Sequencer:
             self.output_message(mido.Message(type='note_off', note=n))
 
     def output_message(self, message: mido.Message):
-        print(message)
         message = message.copy(channel=self.output_channel)
-        print(message)
         self.output.on_next(message)
 
         if message.type == 'note_on':
@@ -215,7 +214,7 @@ class Sequencer:
     def process_message(self, message):
         if self.thru:
             if message.type in ['note_on', 'note_off']:
-                self.app.output_manager.send_to_all(message)
+                self.output_message(message)
 
         if not self.recording:
             return
