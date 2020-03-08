@@ -35,8 +35,9 @@ class OutputManager(threading.Thread):
 
     def send_to_all(self, message):
         self.message.on_next(message)
-        print('Sent', message)
-        for port in self.open_ports.values():
-            port.send(message)
         self.recently_sent.append((time.time(), message))
         self.recently_sent = self.recently_sent[-50:]
+        for port in self.open_ports.values():
+            port.send(message)
+
+        print('Sent', message)

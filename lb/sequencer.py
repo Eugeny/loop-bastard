@@ -81,6 +81,8 @@ class Sequencer:
         self.start_scheduled = False
         self.quantizer_div = 8
 
+        self.output_channel = 1
+
         self.currently_on = {}
 
         self.reset()
@@ -151,6 +153,7 @@ class Sequencer:
             self.output_message(mido.Message(type='note_off', note=n))
 
     def output_message(self, message: mido.Message):
+        message.channel = self.output_channel
         self.output.on_next(message)
 
         if message.type == 'note_on':
