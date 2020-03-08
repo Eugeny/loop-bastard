@@ -111,7 +111,7 @@ class App:
         self.controls.play_button.press.subscribe(lambda _: self.on_play())
         self.controls.stop_button.press.subscribe(lambda _: self.on_stop())
         self.controls.record_button.press.subscribe(lambda _: self.on_record())
-        self.controls.reset_button.press.subscribe(lambda _: self.on_reset())
+        self.controls.clear_button.press.subscribe(lambda _: self.on_clear())
         self.controls.s_1_button.press.subscribe(lambda _: self.select_sequencer(self.sequencers[0]))
         self.controls.s_2_button.press.subscribe(lambda _: self.select_sequencer(self.sequencers[1]))
 
@@ -171,5 +171,5 @@ class App:
                 if s != self.selected_sequencer:
                     s.schedule_stop()
 
-    def on_reset(self):
+    def on_clear(self):
         self.selected_sequencer.reset()
