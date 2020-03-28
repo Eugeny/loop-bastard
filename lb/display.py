@@ -39,7 +39,7 @@ class Display(threading.Thread):
 
     def get_blink(self, type):
         if type == 'beat':
-            a = self.app.tempo.get_time() % self.app.tempo.get_beat_length() / self.app.tempo.get_beat_length()
+            a = self.app.tempo.get_position() % 1
             return int(255 - a * 255)
         if type == 'fast':
             return 255 * int((time.time() % 0.125 * 8) * 1.9)
@@ -174,10 +174,19 @@ class Display(threading.Thread):
         surface.blit(self.font.render('IN', True, c), (p + 5, 5))
         p += 50
 
+        # Clock
+        t = 'EXT' if self.app.input_manager.active_clock else 'INT'
+        c = (0, 255, 128) if self.app.input_manager.active_clock else (255, 128, 0)
+        surface.blit(
+            self.font.render(t, True, c),
+            (p + 5, 5),
+        )
+        p += 60
+
         # BPM
         surface.blit(
             self.font.render(
-                str(self.app.tempo.bpm) + ' BPM',
+                str(int(self.app.tempo.bpm)) + ' BPM',
                 True,
                 (128, 128, 128),
             ),
@@ -227,7 +236,7 @@ class Display(threading.Thread):
             )
         else:
             if sequencer.running:
-                fill_q = 1 - sequencer.get_time() / sequencer.get_length()
+                fill_q = 1 - sequencer.get_position() / sequencer.get_length()
 
                 pygame.draw.rect(
                     surface,
@@ -293,32 +302,22 @@ class Display(threading.Thread):
             )
 
     def draw_sequencer_body(self, surface, sequencer):
-        def time_to_x(t):
-            return surface.get_width() * t / sequencer.get_length()
+        def pos_to_x(p):
+            return surface.get_width() * p / sequencer.get_length()
 
-        for i in range(1, sequencer.bars + 1):
-            color = (10, 10, 10) if (i % 2) else (20, 20, 20)
-            color = (0, 0, 0)
+        for i in range(0, sequencer.bars * self.app.tempo.bar_size):
+            color = (50, 50, 100) if (i % 4 == 0) else (30, 30, 30)
             surface.fill(color, rect=(
-                time_to_x(self.app.tempo.q_to_time((1, i, 1))),
-                0,
-                time_to_x(self.app.tempo.q_to_time((1, 2, 1))),
-                surface.get_height(),
-            ))
-
-        for i in range(1, sequencer.bars * self.app.tempo.bar_size + 1):
-            color = (50, 50, 100) if (i % 4 == 1) else (30, 30, 30)
-            surface.fill(color, rect=(
-                time_to_x(self.app.tempo.q_to_time((1, 1, i))),
+                pos_to_x(i),
                 0,
                 1,
                 surface.get_height(),
             ))
 
-        q_time = self.app.tempo.get_beat_length() * 4 / sequencer.quantizer_filter.divisor
+        q_pos = 4 / sequencer.quantizer_filter.divisor
         q_color = (255, 128, 0) if sequencer.quantizer_filter.enabled else (128, 128, 128)
-        for i in range(0, int(sequencer.get_length() / q_time)):
-            surface.fill(q_color, (time_to_x(q_time * i), 0, 2, 5))
+        for i in range(0, int(sequencer.get_length() / q_pos)):
+            surface.fill(q_color, (pos_to_x(q_pos * i), 0, 2, 5))
 
         with sequencer.lock:
             dif_notes = sorted(set(x.message.note for x in sequencer.filtered_events))
@@ -368,38 +367,38 @@ class Display(threading.Thread):
                         remaining_events.remove(event)
                     if event.message.type == 'note_off':
                         if event.message.note in m:
-                            notes.append((m[event.message.note], event.time - m[event.message.note].time))
+                            notes.append((m[event.message.note], event.position - m[event.message.note].position))
                             remaining_events.remove(event)
                             del m[event.message.note]
                 for event in remaining_events:
                     if event.message.type == 'note_off':
                         if event.message.note in m:
-                            notes.append((m[event.message.note], event.time + sequencer.get_length() - m[event.message.note].time))
+                            notes.append((m[event.message.note], event.position + sequencer.get_length() - m[event.message.note].position))
                             del m[event.message.note]
 
                 for event in sequencer.filtered_events:
                     if event.message.type == 'note_on' and sequencer.is_note_open(event):
-                        length = sequencer.get_time() - event.time
-                        length = sequencer.normalize_time(length)
+                        length = sequencer.get_position() - event.position
+                        length = sequencer.normalize_position(length)
                         notes.append((event, length))
 
                 for (event, length) in notes:
                     draw_note(
                         event.message,
-                        time_to_x(event.time),
-                        time_to_x(length),
+                        pos_to_x(event.position),
+                        pos_to_x(length),
                     )
-                    if event.time + length > sequencer.get_length():
+                    if event.position + length > sequencer.get_length():
                         draw_note(
                             event.message,
-                            time_to_x(event.time - sequencer.get_length()),
-                            time_to_x(length),
+                            pos_to_x(event.position - sequencer.get_length()),
+                            pos_to_x(length),
                         )
 
         # Time indicator
         surface.fill(
             (255, 255, 255),
-            (time_to_x(sequencer.get_time()), 0, 1, surface.get_height())
+            (pos_to_x(sequencer.get_position()), 0, 1, surface.get_height())
         )
 
     def run(self):

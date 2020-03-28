@@ -143,7 +143,7 @@ class App:
         self.input_manager.start()
         self.output_manager = OutputManager()
         self.output_manager.start()
-        self.tempo = Tempo()
+        self.tempo = Tempo(self)
         self.tempo.start()
         self.controls = Controls(self)
         self.controls.start()
@@ -161,10 +161,10 @@ class App:
                 import mido
                 from lb.sequencer import SequencerEvent
                 self.sequencers[0].events.append(
-                    SequencerEvent(message=mido.Message('note_on', note=64+i), time=i/3.7),
+                    SequencerEvent(message=mido.Message('note_on', note=64+i), position=i/3.7),
                 )
                 self.sequencers[0].events.append(
-                    SequencerEvent(message=mido.Message('note_off', note=64+i), time=i/3.7+.35),
+                    SequencerEvent(message=mido.Message('note_off', note=64+i), position=i/3.7+.35),
                 )
             self.sequencers[0].refresh()
 

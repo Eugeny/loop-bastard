@@ -6,27 +6,27 @@ import threading
 class Tempo(threading.Thread):
     bar_size = 4
     bars = 4
-    bpm = 120
-    start_time = 0
     enable_metronome = False
+    last_clock_time = None
+    external_ticks = 0
 
-    def __init__(self):
+    def __init__(self, app):
         super().__init__(daemon=True)
-        self.start_time = time.time()
+        self.reset()
+        self.app = app
         self.metronome_sound = pygame.mixer.Sound('metronome.wav')
         self.metronome_b_sound = pygame.mixer.Sound('metronome_b.wav')
+        self.app.input_manager.clock_set.subscribe(self.on_clock_set)
+        self.app.input_manager.clock.subscribe(lambda _: self.on_clock())
 
     def get_time(self):
-        return time.time() - self.start_time
+        return 1 / 24 / 2 * self.external_ticks
 
-    def time_to_pos(self, t):
-        return t * self.bpm / 60
+    def get_position(self):
+        return self.external_ticks / 24
 
-    def pos_to_time(self, p):
+    def position_to_time(self, p):
         return p / self.bpm * 60
-
-    def get_pos(self):
-        return self.time_to_pos(time.time() - self.start_time)
 
     def pos_to_q(self, p):
         p = int(p)
@@ -37,29 +37,38 @@ class Tempo(threading.Thread):
         return (parts + 1, bars + 1, beat + 1)
 
     def get_q(self):
-        return self.pos_to_q(self.get_pos())
+        return self.pos_to_q(self.get_position())
 
-    def q_to_time(self, q):
-        beat_len = self.get_beat_length()
-        bar_len = self.get_bar_length()
-        return (q[0] - 1) * bar_len * self.bars + (q[1] - 1) * \
-            bar_len + (q[2] - 1) * beat_len
-
-    def get_beat_length(self):
+    def get_beat_time_length(self):
         return 60 / self.bpm
 
-    def get_bar_length(self):
+    def get_bar_time_length(self):
         return 60 / self.bpm * self.bar_size
 
     def run(self):
         while True:
-            next_tick = self.pos_to_time(round(self.get_pos()) + 1)
+            next_tick = self.position_to_time(round(self.get_position()) + 1)
             time.sleep(next_tick - self.get_time())
-            q = self.pos_to_q(round(self.get_pos()))
+            q = self.pos_to_q(round(self.get_position()))
             if self.enable_metronome:
                 if q[2] == 1:
                     self.metronome_b_sound.play()
                 else:
                     self.metronome_sound.play()
             time.sleep(self.metronome_sound.get_length())
-            # print(time.time())
+
+    def reset(self):
+        self.last_clock_time = None
+        self.bpm = 120
+
+    def on_clock(self):
+        lct = self.last_clock_time
+        self.last_clock_time = time.time()
+        if lct:
+            dt = time.time() - lct
+            bpm = 1 / 24 * 60 / dt
+            self.bpm = bpm
+        self.external_ticks += 1
+
+    def on_clock_set(self, ticks):
+        self.external_ticks = ticks
