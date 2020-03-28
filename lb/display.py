@@ -58,14 +58,18 @@ class Display(threading.Thread):
         for i in range(item_count):
             if display_items[i]:
                 text_w = self.font.size(display_items[i])[0]
-                rect = (5, i * item_h, w - 10, item_h)
                 if i == selected_position:
+                    rect = (5, i * item_h, w - 20, item_h)
                     surface.fill(fg, rect)
+                else:
+                    rect = (10, i * item_h, w - 20, item_h)
+                    surface.fill((fg[0] / 2, fg[1] / 2, fg[2] / 2), rect)
+
                 surface.blit(self.font.render(
                     display_items[i],
                     True,
                     bg if i == selected_position else fg,
-                ), (w // 2 - text_w // 2, rect[1]))
+                ), (rect[0] + rect[2] // 2 - text_w // 2, rect[1]))
 
     def draw_param_selector(self, surface):
         w, h = surface.get_size()
@@ -105,8 +109,10 @@ class Display(threading.Thread):
         w, h = surface.get_size()
 
         param = self.app.current_param[self.app.current_scope]
-        bg = (128, 64, 32)
         fg = (255, 128, 64)
+
+        if not param.is_on():
+            fg = (128, 128, 128)
 
         # pygame.draw.rect(
         #     surface,
@@ -299,13 +305,14 @@ class Display(threading.Thread):
                 surface.get_height(),
             ))
 
-        q_time = self.app.tempo.get_beat_length() * 4 / sequencer.quantizer_div
+        q_time = self.app.tempo.get_beat_length() * 4 / sequencer.quantizer_filter.divisor
+        q_color = (255, 128, 0) if sequencer.quantizer_filter.enabled else (128, 128, 128)
         for i in range(0, int(sequencer.get_length() / q_time)):
-            surface.fill((255, 128, 0), (time_to_x(q_time * i), 0, 2, 5))
+            surface.fill(q_color, (time_to_x(q_time * i), 0, 2, 5))
 
         with sequencer.lock:
-            dif_notes = sorted(set(x.message.note for x in sequencer.events))
-            if len(sequencer.events):
+            dif_notes = sorted(set(x.message.note for x in sequencer.filtered_events))
+            if len(sequencer.filtered_events):
                 note_h = surface.get_height() / max(10, len(dif_notes))
                 notes_y = {note: surface.get_height() - (idx + 1) * surface.get_height() / len(dif_notes) for idx, note in enumerate(dif_notes)}
 
@@ -344,7 +351,7 @@ class Display(threading.Thread):
 
                 m = {}
                 notes = []
-                remaining_events = sequencer.events[:]
+                remaining_events = sequencer.filtered_events[:]
                 for event in remaining_events[:]:
                     if event.message.type == 'note_on':
                         m[event.message.note] = event
@@ -360,7 +367,7 @@ class Display(threading.Thread):
                             notes.append((m[event.message.note], event.time + sequencer.get_length() - m[event.message.note].time))
                             del m[event.message.note]
 
-                for event in sequencer.events:
+                for event in sequencer.filtered_events:
                     if event.message.type == 'note_on' and sequencer.is_note_open(event):
                         length = sequencer.get_time() - event.time
                         length = sequencer.normalize_time(length)
@@ -420,16 +427,16 @@ class Display(threading.Thread):
 
             for s_index, s in enumerate(self.app.sequencers):
                 self.draw_sequencer_icon(
-                    self.screen.subsurface((10 + 110 * s_index, 50, 100, 100)),
+                    self.screen.subsurface((10 + 60 * s_index, 50, 50, 100)),
                     s
                 )
 
             self.draw_param_selector(
-                self.screen.subsurface((self.screen.get_width() - 10 - 215, 50, 110, 100))
+                self.screen.subsurface((self.screen.get_width() - 10 - 290, 50, 170, 100))
             )
 
             self.draw_param_value(
-                self.screen.subsurface((self.screen.get_width() - 10 - 100, 50, 100, 100))
+                self.screen.subsurface((self.screen.get_width() - 10 - 120, 50, 120, 100))
             )
 
             pygame.display.flip()
@@ -440,13 +447,6 @@ class Display(threading.Thread):
                 time.sleep(1 / 60)
                 for event in pygame.event.get():
                     self.app.controls.process_event(event)
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_z:
-                            self.app.current_scope = 'global'
-                        if event.key == pygame.K_x:
-                            self.app.current_scope = 'sequencer'
-                        if event.key == pygame.K_c:
-                            self.app.current_scope = 'note'
                     if event.type == pygame.QUIT:
                         sys.exit()
 

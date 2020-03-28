@@ -74,13 +74,13 @@ class Controls(threading.Thread):
         if GPIO:
             GPIO.setmode(GPIO.BCM)
         self.play_button = Button(pin=21, key=pygame.K_SPACE)
-        self.stop_button = Button(20, key=pygame.K_ESCAPE)
+        self.stop_button = Button(20, key=pygame.K_s)
         self.record_button = Button(16, key=pygame.K_r)
         self.clear_button = Button(19, key=pygame.K_c)
         self.ok_button = Button(2, key=pygame.K_RETURN)
         self.s_1_button = Button(17, key=pygame.K_1)
         self.s_2_button = Button(27, key=pygame.K_2)
-        self.rotary_param = Rotary(26, 13, key_left=pygame.K_DOWN, key_right=pygame.K_UP)
+        self.rotary_param = Rotary(13, 26, key_left=pygame.K_DOWN, key_right=pygame.K_UP)
         self.rotary_value = Rotary(5, 6, key_left=pygame.K_LEFT, key_right=pygame.K_RIGHT)
         self.items = [
             self.play_button,

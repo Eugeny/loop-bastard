@@ -1,3 +1,4 @@
+import math
 from .controls import Controls
 from .input_manager import InputManager
 from .output_manager import OutputManager
@@ -7,7 +8,7 @@ from .display import Display
 
 
 class MetronomeParam:
-    name = 'Metr.'
+    name = 'Metronome'
     type = 'list'
 
     def __init__(self, app):
@@ -23,29 +24,93 @@ class MetronomeParam:
     def ok(self):
         self.app.tempo.enable_metronome = not self.app.tempo.enable_metronome
 
+    def is_on(self):
+        return self.app.tempo.enable_metronome
+
     def to_str(self, v):
         return 'On' if v else 'Off'
 
 
 class QuantizerParam:
-    name = 'Quant.'
+    name = 'Quantizer'
     type = 'list'
 
     def __init__(self, app):
         self.app = app
-        self.options = [1, 2, 4, 8, 16, 32]
+        self.options = [1, 2, 4, 8, 16, 32, None]
 
     def get(self):
-        return self.app.selected_sequencer.quantizer_div
+        if not self.app.selected_sequencer.quantizer_filter.enabled:
+            return None
+        return self.app.selected_sequencer.quantizer_filter.divisor
 
     def set(self, v):
-        self.app.selected_sequencer.quantizer_div = v
+        self.app.selected_sequencer.quantizer_filter.enabled = v is not None
+        self.app.selected_sequencer.quantizer_filter.divisor = v or 32
+        self.app.selected_sequencer.refresh()
 
     def ok(self):
-        self.app.selected_sequencer.quantize()
+        pass
+
+    def is_on(self):
+        return self.get() is not None
 
     def to_str(self, v):
+        if not v:
+            return 'Off'
         return f'1/{v}'
+
+
+class GateLengthParam:
+    name = 'Gate length'
+    type = 'dial'
+
+    def __init__(self, app):
+        self.app = app
+        self.options = [x / 10 for x in range(1, 9)] + [math.sqrt(x / 10) for x in range(10, 170, 8)]
+
+    def get(self):
+        return self.app.selected_sequencer.gate_length_filter.multiplier
+
+    def set(self, v):
+        self.app.selected_sequencer.gate_length_filter.multiplier = v
+        self.app.selected_sequencer.refresh()
+
+    def ok(self):
+        pass
+
+    def is_on(self):
+        return self.get() != 1
+
+    def to_str(self, v):
+        return f'{v:.1f}x'
+
+
+class OffsetParam:
+    name = 'Offset'
+    type = 'dial'
+
+    def __init__(self, app):
+        self.app = app
+        self.options = [x / 10 for x in range(-10, 11)]
+
+    def get(self):
+        return self.app.selected_sequencer.offset_filter.offset
+
+    def set(self, v):
+        self.app.selected_sequencer.offset_filter.offset = v
+        self.app.selected_sequencer.refresh()
+
+    def ok(self):
+        pass
+
+    def is_on(self):
+        return self.get() != 0
+
+    def to_str(self, v):
+        if v > 0:
+            return f'+{v:.1f}'
+        return f'-{v:.1f}'
 
 
 class LengthParam:
@@ -65,6 +130,9 @@ class LengthParam:
     def ok(self):
         pass
 
+    def is_on(self):
+        return True
+
     def to_str(self, v):
         return f'{v} bars'
 
@@ -82,13 +150,13 @@ class App:
         self.selected_sequencer = None
 
         self.sequencers = []
-        for i in range(4):
+        for i in range(6):
             self.add_sequencer()
         self.select_sequencer(self.sequencers[0])
 
         self.input_manager.message.subscribe(lambda x: self.process_message(x[0], x[1]))
 
-        if False:
+        if True:
             for i in range(16):
                 import mido
                 from lb.sequencer import SequencerEvent
@@ -98,7 +166,7 @@ class App:
                 self.sequencers[0].events.append(
                     SequencerEvent(message=mido.Message('note_off', note=64+i), time=i/3.7+.35),
                 )
-            self.sequencers[0].cleanup()
+            self.sequencers[0].refresh()
 
         self.current_scope = 'sequencer'
         self.scope_params = {
@@ -106,9 +174,11 @@ class App:
                 MetronomeParam(self),
             ],
             'sequencer': [
-                MetronomeParam(self),
                 QuantizerParam(self),
+                GateLengthParam(self),
+                OffsetParam(self),
                 LengthParam(self),
+                MetronomeParam(self),
             ],
             'note': [],
         }
@@ -116,8 +186,8 @@ class App:
             'sequencer': self.scope_params['sequencer'][0],
         }
 
-        self.controls.rotary_param.left.subscribe(lambda _: self.param_prev())
-        self.controls.rotary_param.right.subscribe(lambda _: self.param_next())
+        self.controls.rotary_param.left.subscribe(lambda _: self.param_next())
+        self.controls.rotary_param.right.subscribe(lambda _: self.param_prev())
         self.controls.rotary_value.left.subscribe(lambda _: self.value_dec())
         self.controls.rotary_value.right.subscribe(lambda _: self.value_inc())
         self.controls.play_button.press.subscribe(lambda _: self.on_play())
