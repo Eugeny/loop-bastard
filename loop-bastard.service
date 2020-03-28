@@ -1,0 +1,11 @@
+[Unit]
+Description=Loop Bastard
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/loop-bastard
+ExecStart=/home/pi/loop-bastard/venv/bin/python main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

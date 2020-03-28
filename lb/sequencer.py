@@ -85,6 +85,7 @@ class Sequencer:
         self.start_position = 0
         self.stop_flag = False
         self.currently_recording_notes = {}
+        self.currently_open_thru_notes = {}
         self.output = Subject()
         self.lock = threading.RLock()
 
@@ -104,11 +105,12 @@ class Sequencer:
         self.app.input_manager.clock.subscribe(lambda _: self.on_clock())
 
     def on_clock(self):
-        if not self.running:
-            event_map = {}
-        else:
-            event_map = self.get_open_events_at_position(self.get_position(), events=self.filtered_events)
-        self.set_notes_on({x.message.note: x.message for x in event_map.values()})
+        with self.lock:
+            if not self.running:
+                event_map = {}
+            else:
+                event_map = self.get_open_events_at_position(self.get_position(), events=self.filtered_events)
+            self.set_notes_on({x.message.note: x.message for x in event_map.values()})
 
     def get_position(self):
         if not self.running:
@@ -170,7 +172,7 @@ class Sequencer:
 
     def set_notes_on(self, map):
         for n in list(self.currently_on.keys()):
-            if n not in map:
+            if n not in map and n not in self.currently_recording_notes and n not in self.currently_open_thru_notes:
                 self.output_message(mido.Message(type='note_off', note=n))
         for n in map:
             if n not in self.currently_on:
@@ -240,30 +242,18 @@ class Sequencer:
                 if event.message.note == note and event.position >= start and event.position <= end and event != exclude:
                     self.events.remove(event)
 
-    def remove_notes_at(self, note, position):
-        with self.lock:
-            m = {}
-            for event in self.events[:]:
-                if event.message.note == note:
-                    if event.position <= position:
-                        if event.message.type == 'note_on':
-                            m[event.message.note] = event
-                        if event.message.type == 'note_off':
-                            del m[event.message.note]
-                    else:
-                        if event.message.type == 'note_off' and event.message.note in m:
-                            self.events.remove(m[event.message.note])
-                            del m[event.message.note]
-                            self.events.remove(event)
-            self.refresh()
-
     def is_note_open(self, event):
         return event in self.currently_recording_notes.values()
 
     def process_message(self, message):
         if self.thru:
-            if message.type in ['note_on', 'note_off']:
+            if message.type == 'note_on':
                 self.output_message(message)
+                self.currently_open_thru_notes[message.note] = message
+            if message.type == 'note_off':
+                self.output_message(message)
+                if message.note in self.currently_open_thru_notes:
+                    del self.currently_open_thru_notes[message.note]
 
         if not self.recording:
             return
