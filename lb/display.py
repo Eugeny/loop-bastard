@@ -2,6 +2,7 @@ import math
 import os
 import pygame
 import pygame.font
+import pygame.gfxdraw
 import time
 import threading
 import sys
@@ -224,6 +225,15 @@ class Display(threading.Thread):
                 (32, 64, 128),
                 (0, 0, w, h),
             )
+        else:
+            if sequencer.running:
+                fill_q = 1 - sequencer.get_time() / sequencer.get_length()
+
+                pygame.draw.rect(
+                    surface,
+                    (32, 128, 64),
+                    (0, h * (1 - fill_q), w, h * fill_q),
+                )
 
         pygame.draw.rect(
             surface,
