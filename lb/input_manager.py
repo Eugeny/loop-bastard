@@ -6,13 +6,21 @@ import time
 
 class InternalClock(threading.Thread):
     def __init__(self, app):
+        super().__init__()
+        self.bpm = 120
         self.app = app
         self.clock = Subject()
 
+    def _wait(self, until):
+        time.sleep(until - time.time() - 0.001)
+        while time.time() < until:
+            pass
+
     def run(self):
         while True:
-            time.sleep(60 / self.app.tempo.bpm / 24)
+            t_last = time.time()
             self.clock.on_next(None)
+            self._wait(t_last + 60 / self.bpm / 24)
 
 
 class MidiReceiver(threading.Thread):
@@ -40,7 +48,6 @@ class MidiReceiver(threading.Thread):
                     self.clocks_received = 0
                     print('{}: MIDI clock found'.format(self.port_name))
                 self.clocks_received += 1
-                #if self.clocks_received > 50:
                 self.clock.on_next(None)
                 self.last_clock_time = time.time()
             else:
@@ -77,6 +84,10 @@ class InputManager(threading.Thread):
         self.clock_lost = Subject()
         self.clock_set = Subject()
         self.internal_clock.clock.subscribe(lambda _: self.on_internal_clock())
+
+    def start(self):
+        super().start()
+        self.internal_clock.start()
 
     def has_input(self):
         return len(self.known_ports) > 0

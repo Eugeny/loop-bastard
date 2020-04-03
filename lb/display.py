@@ -27,12 +27,14 @@ class Display(threading.Thread):
 
         self.had_midi_in_activity = False
         self.had_midi_out_activity = False
+        self.midi_in_channel_activity = [False] * 16
 
-        self.app.input_manager.message.subscribe(lambda _: self._on_midi_in())
+        self.app.input_manager.message.subscribe(lambda stuff: self._on_midi_in(stuff[1]))
         self.app.output_manager.message.subscribe(lambda _: self._on_midi_out())
 
-    def _on_midi_in(self):
+    def _on_midi_in(self, message):
         self.had_midi_in_activity = True
+        self.midi_in_channel_activity[message.channel] = True
 
     def _on_midi_out(self):
         self.had_midi_out_activity = True
@@ -162,6 +164,44 @@ class Display(threading.Thread):
                 (w / 2 + 40 * math.sin(index_to_angle(option_index)), h / 2 - 40 * math.cos(index_to_angle(option_index))),
                 5,
             )
+
+        if param.type == 'midi-channel':
+            margin = 5
+            box_w_out = (w - margin) // 4 - margin
+            box_h_out = (h - margin) // 4 - margin
+
+            for i in range(16):
+                x = i % 4
+                y = i // 4
+
+                if i + 1 == param.get() or not param.get():
+                    surface.fill(
+                        fg,
+                        rect=(
+                            (margin + box_w_out) * x,
+                            (margin + box_h_out) * y,
+                            margin * 2 + box_w_out, margin * 2 + box_h_out
+                        )
+                    )
+
+                surface.fill(
+                    fg if self.midi_in_channel_activity[i] else (fg[0] // 2, fg[1] // 2, fg[2] // 2),
+                    rect=(
+                        margin + (margin + box_w_out) * x,
+                        margin + (margin + box_h_out) * y,
+                        box_w_out, box_h_out
+                    )
+                )
+
+                text_w, text_h = self.font_sm.size(str(i + 1))
+                surface.blit(self.font_sm.render(
+                    str(i + 1),
+                    True,
+                    (255, 255, 255) if self.midi_in_channel_activity[i] else fg
+                ), (
+                    margin + (margin + box_w_out) * x + box_w_out // 2 - text_w // 2,
+                    margin + (margin + box_h_out) * y + box_h_out // 2 - text_h // 2,
+                ))
 
     def draw_status_bar(self, surface):
         surface.fill((128, 128, 128), rect=(5, surface.get_height() - 2, surface.get_width() - 10, 2))
@@ -406,6 +446,7 @@ class Display(threading.Thread):
         pygame.mouse.set_visible(0)
         self.screen = pygame.display.set_mode((800, 400))
         self.font_xs = pygame.font.Font('bryant.ttf', 10)
+        self.font_sm = pygame.font.Font('bryant.ttf', 14)
         self.font = pygame.font.Font('bryant.ttf', 24)
         self.font_lg = pygame.font.Font('bryant.ttf', 36)
         self.img_play = pygame.image.load('images/play.png')
@@ -434,9 +475,11 @@ class Display(threading.Thread):
                 self.app.selected_sequencer,
             )
 
-            for s_index, s in enumerate(self.app.sequencers):
+            for i in range(self.app.sequencer_bank_size):
+                s_index = self.app.sequencer_bank_size * self.app.selected_sequencer_bank + i
+                s = self.app.sequencers[s_index]
                 self.draw_sequencer_icon(
-                    self.screen.subsurface((10 + 60 * s_index, 50, 50, 100)),
+                    self.screen.subsurface((10 + 70 * i, 50, 60, 100)),
                     s
                 )
 
@@ -451,9 +494,10 @@ class Display(threading.Thread):
             pygame.display.flip()
             self.had_play_activity = False
             self.had_midi_out_activity = False
+            self.midi_in_channel_activity = [False] * 16
 
             try:
-                time.sleep(1 / 60)
+                time.sleep(1 / 30)
                 for event in pygame.event.get():
                     self.app.controls.process_event(event)
                     if event.type == pygame.QUIT:

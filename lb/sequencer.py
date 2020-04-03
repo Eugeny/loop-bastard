@@ -86,6 +86,8 @@ class Sequencer:
         self.stop_flag = False
         self.currently_recording_notes = {}
         self.currently_open_thru_notes = {}
+        self.input_channel = None
+        self.output_channel = 1
         self.output = Subject()
         self.lock = threading.RLock()
 
@@ -95,7 +97,6 @@ class Sequencer:
         self.offset_filter = OffsetFilter(self.app, self)
         self.gate_length_filter = GateLengthFilter(self.app, self)
 
-        self.output_channel = 1
         self.thru = False
 
         self.currently_on = {}
@@ -246,6 +247,9 @@ class Sequencer:
         return event in self.currently_recording_notes.values()
 
     def process_message(self, message):
+        if self.input_channel and message.channel != self.input_channel:
+            return
+
         if self.thru:
             if message.type == 'note_on':
                 self.output_message(message)

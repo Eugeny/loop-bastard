@@ -7,7 +7,7 @@ class Tempo(threading.Thread):
     bar_size = 4
     bars = 4
     enable_metronome = False
-    last_clock_time = None
+    last_beat_time = None
     external_ticks = 0
 
     def __init__(self, app):
@@ -58,16 +58,17 @@ class Tempo(threading.Thread):
             time.sleep(self.metronome_sound.get_length())
 
     def reset(self):
-        self.last_clock_time = None
+        self.last_beat_time = None
         self.bpm = 120
 
     def on_clock(self):
-        lct = self.last_clock_time
-        self.last_clock_time = time.time()
-        if lct:
-            dt = time.time() - lct
-            bpm = 1 / 24 * 60 / dt
-            self.bpm = bpm
+        if self.external_ticks % 24 == 0:
+            lbt = self.last_beat_time
+            self.last_beat_time = time.time()
+            if lbt:
+                dt = time.time() - lbt
+                bpm = 60 / dt
+                self.bpm = bpm
         self.external_ticks += 1
 
     def on_clock_set(self, ticks):
