@@ -10,6 +10,7 @@ from .output_manager import OutputManager
 from .sequencer import Sequencer
 from .tempo import Tempo
 from .display import Display
+from .util import number_to_note, list_next, list_prev
 
 
 class MetronomeParam:
@@ -211,6 +212,108 @@ class OutputChannelParam:
         return f'Ch. {v}'
 
 
+class BaseNoteParam:
+    def _get_events(self):
+        sequencer = self.app.selected_sequencer
+        if self.app.selected_event is None:
+            return None, None
+        e_on = self.app.selected_event
+        e_off = sequencer.get_off_event_for_on_event(sequencer.events, self.app.selected_event)
+        return e_on, e_off
+
+
+class NotePitchParam(BaseNoteParam):
+    name = 'Pitch'
+    type = 'list'
+
+    def __init__(self, app):
+        self.app = app
+        self.options = list(range(128))
+
+    def get(self):
+        on, _ = self._get_events()
+        if on:
+            return on.message.note
+        return 0
+
+    def set(self, v):
+        on, off = self._get_events()
+        if on:
+            on.message.note = v
+            off.message.note = v
+        self.app.selected_sequencer.refresh()
+
+    def ok(self):
+        pass
+
+    def is_on(self):
+        return True
+
+    def to_str(self, v):
+        note, octave = number_to_note(v)
+        return f'{note}{octave}'
+
+
+class NoteLengthParam(BaseNoteParam):
+    name = 'Length'
+    type = 'dial'
+
+    def __init__(self, app):
+        self.app = app
+        self.options = list(range(1, 32 * 16))
+
+    def get(self):
+        on, off = self._get_events()
+        if on:
+            return round(32 * (off.position - on.position))
+        return 0
+
+    def set(self, v):
+        on, off = self._get_events()
+        if on:
+            off.position = on.position + v / 32
+        self.app.selected_sequencer.refresh()
+
+    def ok(self):
+        pass
+
+    def is_on(self):
+        return True
+
+    def to_str(self, v):
+        return f'{v:.1f}'
+
+
+class NoteVelocityParam(BaseNoteParam):
+    name = 'Velocity'
+    type = 'dial'
+
+    def __init__(self, app):
+        self.app = app
+        self.options = list(range(128))
+
+    def get(self):
+        on, _ = self._get_events()
+        if on:
+            return on.message.velocity
+        return 0
+
+    def set(self, v):
+        on, _ = self._get_events()
+        if on:
+            on.message.velocity = v
+        self.app.selected_sequencer.refresh()
+
+    def ok(self):
+        pass
+
+    def is_on(self):
+        return True
+
+    def to_str(self, v):
+        return str(v)
+
+
 class App:
     def __init__(self):
         self.input_manager = InputManager(self)
@@ -226,6 +329,7 @@ class App:
         self.saved_state_path = 'state.json'
         self.selected_sequencer = None
         self.selected_sequencer_bank = 0
+        self.seleted_event = None
         self.sequencer_is_empty = defaultdict(lambda: True)
 
         self.sequencer_bank_size = len(self.controls.number_buttons)
@@ -273,10 +377,15 @@ class App:
                 InputChannelParam(self),
                 OutputChannelParam(self),
             ],
-            'note': [],
+            'note': [
+                NotePitchParam(self),
+                NoteLengthParam(self),
+                NoteVelocityParam(self),
+            ],
         }
         self.current_param = {
             'sequencer': self.scope_params['sequencer'][0],
+            'note': self.scope_params['note'][0],
         }
 
         self.controls.rotary_param.left.subscribe(lambda _: self.param_next())
@@ -287,6 +396,7 @@ class App:
         self.controls.stop_button.press.subscribe(lambda _: self.on_stop())
         self.controls.record_button.press.subscribe(lambda _: self.on_record())
         self.controls.clear_button.press.subscribe(lambda _: self.on_clear())
+        self.controls.scope_button.press.subscribe(lambda _: self.on_scope())
         self.controls.ok_button.press.subscribe(lambda _: self.on_ok())
 
         for i in range(len(self.controls.number_buttons)):
@@ -300,11 +410,15 @@ class App:
 
     def select_sequencer(self, s):
         if self.selected_sequencer:
+            self.selected_sequencer.close_open_notes()
             self.selected_sequencer.thru = False
             if self.sequencer_is_empty[s]:
                 s.load_state(self.selected_sequencer.save_state())
+                s.events = []
+                s.refresh()
 
         self.sequencer_is_empty[s] = False
+        self.selected_event = None
 
         self.selected_sequencer = s
         self.selected_sequencer.thru = True
@@ -315,32 +429,47 @@ class App:
             s.process_message(msg)
 
     def param_prev(self):
-        i = self.scope_params[self.current_scope].index(self.current_param[self.current_scope])
-        i = max(0, i - 1)
-        self.current_param[self.current_scope] = self.scope_params[self.current_scope][i]
+        if self.controls.shift_button.pressed:
+            self.current_scope = 'note'
+            events = [x for x in self.selected_sequencer.events if x.message.type == 'note_on']
+            self.selected_event = list_prev(events, self.selected_event)
+        else:
+            self.current_param[self.current_scope] = list_prev(self.scope_params[self.current_scope], self.current_param[self.current_scope])
 
     def param_next(self):
-        i = self.scope_params[self.current_scope].index(self.current_param[self.current_scope])
-        i = min(len(self.scope_params[self.current_scope]) - 1, i + 1)
-        self.current_param[self.current_scope] = self.scope_params[self.current_scope][i]
+        if self.controls.shift_button.pressed:
+            self.current_scope = 'note'
+            events = [x for x in self.selected_sequencer.events if x.message.type == 'note_on']
+            self.selected_event = list_next(events, self.selected_event)
+        else:
+            self.current_param[self.current_scope] = list_next(self.scope_params[self.current_scope], self.current_param[self.current_scope])
 
     def value_dec(self):
-        i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
-        i = max(0, i - 1)
-        self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
+        self.current_param[self.current_scope].set(
+            list_prev(
+                self.current_param[self.current_scope].options,
+                self.current_param[self.current_scope].get()
+            )
+        )
+        self.sequencer_is_empty[self.selected_sequencer] = False
         self.save_state()
 
     def value_inc(self):
-        i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
-        i = min(len(self.current_param[self.current_scope].options) - 1, i + 1)
-        self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
+        self.current_param[self.current_scope].set(
+            list_next(
+                self.current_param[self.current_scope].options,
+                self.current_param[self.current_scope].get()
+            )
+        )
+        self.sequencer_is_empty[self.selected_sequencer] = False
         self.save_state()
 
     def on_number(self, i):
         if self.controls.shift_button.pressed:
             self.selected_sequencer_bank = i
+            self.select_sequencer(self.sequencers[self.selected_sequencer_bank * self.sequencer_bank_size])
         else:
-            self.select_sequencer(self.sequencers[self.selected_sequencer_bank * self.sequencer_bank_size +i])
+            self.select_sequencer(self.sequencers[self.selected_sequencer_bank * self.sequencer_bank_size + i])
 
     def on_ok(self):
         self.current_param[self.current_scope].ok()
@@ -373,19 +502,35 @@ class App:
         self.save_state()
 
     def on_record(self):
+        self.sequencer_is_empty[self.selected_sequencer] = False
         if self.selected_sequencer.recording:
             self.selected_sequencer.stop_recording()
         else:
-            self.selected_sequencer.schedule_record()
             for s in self.sequencers:
-                if s != self.selected_sequencer:
-                    s.schedule_stop()
+                if s.recording:
+                    s.stop_recording()
+                if s != self.selected_sequencer and s.output_channel == self.selected_sequencer.output_channel:
+                    if self.controls.shift_button.pressed:
+                        s.stop()
+                    else:
+                        s.schedule_stop()
+
+            self.selected_sequencer.schedule_record()
         self.save_state()
 
     def on_clear(self):
         self.selected_sequencer.reset()
         self.sequencer_is_empty[self.selected_sequencer] = True
         self.save_state()
+
+    def on_scope(self):
+        if self.current_scope == 'sequencer':
+            if len(self.selected_sequencer.events):
+                self.current_scope = 'note'
+                self.selected_event = None
+        else:
+            self.current_scope = 'sequencer'
+            self.selected_event = None
 
     def save_state(self):
         if not self.enable_state_saving:

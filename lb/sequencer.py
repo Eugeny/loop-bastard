@@ -11,7 +11,9 @@ class SequencerEvent:
     message: mido.Message
 
     def clone(self):
-        return replace(self)
+        ret = replace(self)
+        ret.source_event = self
+        return ret
 
 
 class BaseFilter:
@@ -183,7 +185,7 @@ class Sequencer:
             self.output_message(mido.Message(type='note_off', note=n))
 
     def output_message(self, message: mido.Message):
-        message = message.copy(channel=self.output_channel)
+        message = message.copy(channel=self.output_channel - 1)
         self.output.on_next(message)
 
         if message.type == 'note_on':
@@ -193,12 +195,14 @@ class Sequencer:
                 del self.currently_on[message.note]
 
     def close_open_notes(self):
-        for note in self.currently_recording_notes.keys():
+        for note in [*self.currently_recording_notes.keys(), *self.currently_open_thru_notes.keys()]:
             self.events.append(SequencerEvent(
                 position=self.get_position(),
                 message=mido.Message(type='note_off', note=note)
             ))
             self.refresh()
+        self.currently_recording_notes = {}
+        self.currently_open_thru_notes = {}
 
     def normalize_position(self, p):
         return (p + self.get_length()) % self.get_length()
@@ -246,7 +250,7 @@ class Sequencer:
         return event in self.currently_recording_notes.values()
 
     def process_message(self, message):
-        if self.input_channel and message.channel != self.input_channel:
+        if self.input_channel and getattr(message, 'channel', 0) != self.input_channel - 1:
             return
 
         if self.thru:
@@ -270,9 +274,10 @@ class Sequencer:
                     message=message,
                 )
                 if message.type == 'note_on':
-                    self.currently_recording_notes[message.note] = event
-                    self.currently_on[message.note] = event
-                    self.events.append(event)
+                    if message.note not in self.currently_recording_notes:
+                        self.currently_recording_notes[message.note] = event
+                        self.currently_on[message.note] = event
+                        self.events.append(event)
                 if message.type == 'note_off':
                     if message.note in self.currently_recording_notes:
                         self.remove_notes_between(
@@ -299,15 +304,6 @@ class Sequencer:
     def refresh(self):
         with self.lock:
             self.events = sorted(self.events, key=lambda x: x.position)
-
-            m = {}
-            for event in self.events[:]:
-                if event.message.type == 'note_on':
-                    m[event.message.note] = event
-                if event.message.type == 'note_off':
-                    if event.message.note in m:
-                        del m[event.message.note]
-
             events = [x.clone() for x in self.events]
             events = self.offset_filter.filter(events)
             events = self.gate_length_filter.filter(events)

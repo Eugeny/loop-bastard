@@ -91,6 +91,7 @@ class Controls(threading.Thread):
         self.stop_button = Button(20, key=pygame.K_s)
         self.record_button = Button(16, key=pygame.K_r)
         self.clear_button = Button(19, key=pygame.K_c)
+        self.scope_button = Button(111, key=pygame.K_BACKSPACE)
         self.ok_button = Button(2, key=pygame.K_RETURN)
         self.number_buttons = [
             Button(pin, key=pygame.K_1 + index)
@@ -107,6 +108,7 @@ class Controls(threading.Thread):
             self.clear_button,
             self.record_button,
             self.ok_button,
+            self.scope_button,
             self.rotary_param,
             self.rotary_value,
         ] + self.number_buttons

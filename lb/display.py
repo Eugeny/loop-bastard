@@ -6,18 +6,9 @@ import pygame.gfxdraw
 import time
 import threading
 import sys
+from lb.util import number_to_note
 
 os.environ['SDL_VIDEO_CENTERED'] = '1'
-
-NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-OCTAVES = list(range(11))
-NOTES_IN_OCTAVE = len(NOTES)
-
-
-def number_to_note(number: int):
-    octave = number // NOTES_IN_OCTAVE
-    note = NOTES[number % NOTES_IN_OCTAVE]
-    return note, octave
 
 
 class Display(threading.Thread):
@@ -45,7 +36,7 @@ class Display(threading.Thread):
             a = self.app.tempo.get_position() % 1
             return int(255 - a * 255)
         if type == 'fast':
-            return 255 * int((time.time() % 0.125 * 8) * 1.9)
+            return 255 * (int(time.time() * 16) % 2)
 
     def _draw_list(self, surface, items=None, index=None, bg=None, fg=None):
         w, h = surface.get_size()
@@ -370,15 +361,29 @@ class Display(threading.Thread):
                 note_h = surface.get_height() / max(10, len(dif_notes))
                 notes_y = {note: surface.get_height() - (idx + 1) * surface.get_height() / len(dif_notes) for idx, note in enumerate(dif_notes)}
 
-                def draw_note(note, x, w):
-                    c = note.velocity / 128
+                def draw_note(event, x, w):
+                    c = event.message.velocity / 128
                     color = (50 + c * 180, 50, 220 - c * 180)
                     text_color = (
                         min(int(color[0] * 1.5), 255),
                         min(int(color[1] * 1.5), 255),
                         min(int(color[2] * 1.5), 255),
                     )
-                    note_rect = (x, notes_y[note.note], w, note_h)
+
+                    note_rect = (x, notes_y[event.message.note], w, note_h)
+
+                    if event.source_event == self.app.selected_event:
+                        pygame.draw.rect(
+                            surface,
+                            (self.get_blink('fast'), self.get_blink('fast') // 2, 0),
+                            (
+                                note_rect[0] - 5,
+                                note_rect[1] - 5,
+                                note_rect[2] + 10,
+                                note_rect[3] + 10,
+                            ),
+                        )
+
                     pygame.draw.rect(
                         surface,
                         color,
@@ -389,7 +394,8 @@ class Display(threading.Thread):
                         (color[0] / 3, color[1] / 3, color[2] / 3),
                         pygame.Rect(note_rect).inflate(-2, -2),
                     )
-                    name, o = number_to_note(note.note)
+
+                    name, o = number_to_note(event.message.note)
                     text = f'{name} {o}'
                     if x >= 0:
                         text_w, text_h = self.font_xs.size(text)
@@ -400,7 +406,7 @@ class Display(threading.Thread):
                                     True,
                                     text_color,
                                 ),
-                                (x + 5, notes_y[note.note] + 5, w, note_h),
+                                (x + 5, notes_y[event.message.note] + 5, w, note_h),
                             )
 
                 m = {}
@@ -422,20 +428,20 @@ class Display(threading.Thread):
                             del m[event.message.note]
 
                 for event in sequencer.filtered_events:
-                    if event.message.type == 'note_on' and sequencer.is_note_open(event):
+                    if event.message.type == 'note_on' and sequencer.is_note_open(event.source_event):
                         length = sequencer.get_position() - event.position
                         length = sequencer.normalize_position(length)
                         notes.append((event, length))
 
                 for (event, length) in notes:
                     draw_note(
-                        event.message,
+                        event,
                         pos_to_x(event.position),
                         pos_to_x(length),
                     )
                     if event.position + length > sequencer.get_length():
                         draw_note(
-                            event.message,
+                            event,
                             pos_to_x(event.position - sequencer.get_length()),
                             pos_to_x(length),
                         )
