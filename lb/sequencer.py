@@ -24,11 +24,10 @@ class BaseFilter:
 
 
 class QuantizerFilter(BaseFilter):
-    enabled = False
-    divisor = 8
+    divisor = None
 
     def filter(self, events):
-        if not self.enabled:
+        if not self.divisor:
             return events
         q = 4 / self.divisor
         for event in events:
@@ -314,3 +313,36 @@ class Sequencer:
             events = self.gate_length_filter.filter(events)
             events = self.quantizer_filter.filter(events)
             self.filtered_events = events
+
+    def save_state(self):
+        state = {k: v for k, v in self.__dict__.items() if k in [
+            'bars', 'input_channel', 'output_channel',
+        ]}
+        state['events'] = []
+        state['quantizer_divisor'] = self.quantizer_filter.divisor
+        state['gate_length_multiplier'] = self.gate_length_filter.multiplier
+        state['offset'] = self.offset_filter.offset
+        for event in self.events:
+            state['events'].append(dict(
+                position=event.position,
+                message=event.message.hex(),
+            ))
+
+        return state
+
+    def load_state(self, state):
+        for k in ['bars', 'input_channel', 'output_channel']:
+            setattr(self, k, state[k])
+
+        self.quantizer_filter.divisor = state['quantizer_divisor']
+        self.gate_length_filter.multiplier = state['gate_length_multiplier']
+        self.offset_filter.offset = state['offset']
+
+        self.events = []
+        for event in state['events']:
+            self.events.append(SequencerEvent(
+                position=event['position'],
+                message=mido.Message.from_hex(event['message']),
+            ))
+
+        self.refresh()

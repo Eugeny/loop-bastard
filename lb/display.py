@@ -34,7 +34,8 @@ class Display(threading.Thread):
 
     def _on_midi_in(self, message):
         self.had_midi_in_activity = True
-        self.midi_in_channel_activity[message.channel] = True
+        if hasattr(message, 'channel'):
+            self.midi_in_channel_activity[message.channel] = True
 
     def _on_midi_out(self):
         self.had_midi_out_activity = True
@@ -284,9 +285,11 @@ class Display(threading.Thread):
                     (0, h * (1 - fill_q), w, h * fill_q),
                 )
 
+        border_color = (64, 128, 255) if sequencer == self.app.selected_sequencer else (64, 64, 64)
+
         pygame.draw.rect(
             surface,
-            (64, 128, 255) if sequencer == self.app.selected_sequencer else (64, 64, 64),
+            border_color,
             (0, 0, w, h),
             5,
         )
@@ -299,14 +302,15 @@ class Display(threading.Thread):
             (255, 255, 255)
         ), (w // 2 - text_w // 2, 10))
 
-        self.img_play_sm.set_alpha(64)
-        surface.blit(self.img_play_sm, (w // 2 - 16, h - 44))
-        if sequencer.running:
-            self.img_play_sm_active.set_alpha(self.get_blink('beat'))
-            surface.blit(self.img_play_sm_active, (w // 2 - 16, h - 44))
-        if sequencer.start_scheduled:
-            self.img_play_sm_active.set_alpha(self.get_blink('fast'))
-            surface.blit(self.img_play_sm_active, (w // 2 - 16, h - 44))
+        if not self.app.sequencer_is_empty[sequencer]:
+            self.img_play_sm.set_alpha(64)
+            surface.blit(self.img_play_sm, (w // 2 - 16, h - 44))
+            if sequencer.running:
+                self.img_play_sm_active.set_alpha(self.get_blink('beat'))
+                surface.blit(self.img_play_sm_active, (w // 2 - 16, h - 44))
+            if sequencer.start_scheduled:
+                self.img_play_sm_active.set_alpha(self.get_blink('fast'))
+                surface.blit(self.img_play_sm_active, (w // 2 - 16, h - 44))
 
     def draw_sequencer(self, surface, sequencer):
         w, h = surface.get_size()
@@ -354,10 +358,11 @@ class Display(threading.Thread):
                 surface.get_height(),
             ))
 
-        q_pos = 4 / sequencer.quantizer_filter.divisor
-        q_color = (255, 128, 0) if sequencer.quantizer_filter.enabled else (128, 128, 128)
-        for i in range(0, int(sequencer.get_length() / q_pos)):
-            surface.fill(q_color, (pos_to_x(q_pos * i), 0, 2, 5))
+        if sequencer.quantizer_filter.divisor:
+            q_pos = 4 / sequencer.quantizer_filter.divisor
+            q_color = (255, 128, 0)
+            for i in range(0, int(sequencer.get_length() / q_pos)):
+                surface.fill(q_color, (pos_to_x(q_pos * i), 0, 2, 5))
 
         with sequencer.lock:
             dif_notes = sorted(set(x.message.note for x in sequencer.filtered_events))

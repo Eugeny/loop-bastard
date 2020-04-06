@@ -6,13 +6,16 @@ import time
 
 class InternalClock(threading.Thread):
     def __init__(self, app):
-        super().__init__()
+        super().__init__(daemon=True)
         self.bpm = 120
         self.app = app
         self.clock = Subject()
 
     def _wait(self, until):
-        time.sleep(until - time.time() - 0.001)
+        try:
+            time.sleep(until - time.time() - 0.001)
+        except ValueError:
+            return
         while time.time() < until:
             pass
 

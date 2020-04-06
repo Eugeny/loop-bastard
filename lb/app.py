@@ -1,4 +1,8 @@
+import json
+import logging
 import math
+import os
+import threading
 from collections import defaultdict
 from .controls import Controls
 from .input_manager import InputManager
@@ -41,13 +45,10 @@ class QuantizerParam:
         self.options = [1, 2, 4, 8, 16, 32, None]
 
     def get(self):
-        if not self.app.selected_sequencer.quantizer_filter.enabled:
-            return None
         return self.app.selected_sequencer.quantizer_filter.divisor
 
     def set(self, v):
-        self.app.selected_sequencer.quantizer_filter.enabled = v is not None
-        self.app.selected_sequencer.quantizer_filter.divisor = v or 32
+        self.app.selected_sequencer.quantizer_filter.divisor = v
         self.app.selected_sequencer.refresh()
 
     def ok(self):
@@ -222,22 +223,28 @@ class App:
         self.controls.start()
         self.tempo.start()
 
+        self.saved_state_path = 'state.json'
         self.selected_sequencer = None
         self.selected_sequencer_bank = 0
-        self.sequencer_is_empty = defaultdict(True)
+        self.sequencer_is_empty = defaultdict(lambda: True)
 
         self.sequencer_bank_size = len(self.controls.number_buttons)
         self.sequencer_banks = len(self.controls.number_buttons)
 
         self.sequencers = []
         for i in range(self.sequencer_banks * self.sequencer_bank_size):
-            self.add_sequencer()
+            s = Sequencer(self)
+            self.sequencers.append(s)
+            s.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
+
+        self.state_file_lock = threading.RLock()
+        self.enable_state_saving = False
 
         self.select_sequencer(self.sequencers[0])
 
         self.input_manager.message.subscribe(lambda x: self.process_message(x[0], x[1]))
 
-        if True:
+        if False:
             for i in range(16):
                 import mido
                 from lb.sequencer import SequencerEvent
@@ -250,6 +257,8 @@ class App:
             self.sequencers[0].refresh()
 
         self.current_scope = 'sequencer'
+        self.metronome_param = MetronomeParam(self)
+        self.tempo_param = TempoParam(self)
         self.scope_params = {
             'global': [
                 MetronomeParam(self),
@@ -259,8 +268,8 @@ class App:
                 GateLengthParam(self),
                 OffsetParam(self),
                 LengthParam(self),
-                TempoParam(self),
-                MetronomeParam(self),
+                self.tempo_param,
+                self.metronome_param,
                 InputChannelParam(self),
                 OutputChannelParam(self),
             ],
@@ -283,23 +292,23 @@ class App:
         for i in range(len(self.controls.number_buttons)):
             self.controls.number_buttons[i].press.subscribe((lambda i: lambda _: self.on_number(i))(i))
 
+        self.load_state()
+        self.enable_state_saving = True
+
         self.display = Display(self)
         self.display.run()
 
-    def add_sequencer(self):
-        s = Sequencer(self)
-        self.sequencers.append(s)
-        s.output.subscribe(lambda msg: self.output_manager.send_to_all(msg))
-
     def select_sequencer(self, s):
-        if self.sequencer_is_empty[s]:
-            pass
-        self.sequencer_is_empty[s] = False
-
         if self.selected_sequencer:
             self.selected_sequencer.thru = False
+            if self.sequencer_is_empty[s]:
+                s.load_state(self.selected_sequencer.save_state())
+
+        self.sequencer_is_empty[s] = False
+
         self.selected_sequencer = s
         self.selected_sequencer.thru = True
+        self.save_state()
 
     def process_message(self, port, msg):
         for s in self.sequencers:
@@ -319,11 +328,13 @@ class App:
         i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
         i = max(0, i - 1)
         self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
+        self.save_state()
 
     def value_inc(self):
         i = self.current_param[self.current_scope].options.index(self.current_param[self.current_scope].get())
         i = min(len(self.current_param[self.current_scope].options) - 1, i + 1)
         self.current_param[self.current_scope].set(self.current_param[self.current_scope].options[i])
+        self.save_state()
 
     def on_number(self, i):
         if self.controls.shift_button.pressed:
@@ -333,6 +344,7 @@ class App:
 
     def on_ok(self):
         self.current_param[self.current_scope].ok()
+        self.save_state()
 
     def on_play(self):
         if self.selected_sequencer.running:
@@ -351,12 +363,14 @@ class App:
                     s.stop()
                 else:
                     s.schedule_stop()
+        self.save_state()
 
     def on_stop(self):
         if self.controls.shift_button.pressed:
             self.selected_sequencer.stop()
         else:
             self.selected_sequencer.schedule_stop()
+        self.save_state()
 
     def on_record(self):
         if self.selected_sequencer.recording:
@@ -366,7 +380,43 @@ class App:
             for s in self.sequencers:
                 if s != self.selected_sequencer:
                     s.schedule_stop()
+        self.save_state()
 
     def on_clear(self):
         self.selected_sequencer.reset()
         self.sequencer_is_empty[self.selected_sequencer] = True
+        self.save_state()
+
+    def save_state(self):
+        if not self.enable_state_saving:
+            return
+        with self.state_file_lock:
+            state = dict(
+                sequencers=[None if self.sequencer_is_empty[s] else s.save_state() for s in self.sequencers],
+                metronome=self.metronome_param.get(),
+                tempo=self.tempo_param.get(),
+            )
+            tmp_path = self.saved_state_path + '.tmp'
+            with open(tmp_path, 'w') as f:
+                json.dump(state, f)
+            os.rename(tmp_path, self.saved_state_path)
+
+    def load_state(self):
+        with self.state_file_lock:
+            if not os.path.exists(self.saved_state_path):
+                return
+
+            with open(self.saved_state_path) as f:
+                try:
+                    state = json.load(f)
+                except Exception as e:
+                    logging.error('State load failed: %s', e)
+                    return
+
+            for index, s_state in enumerate(state['sequencers']):
+                self.sequencer_is_empty[self.sequencers[index]] = not s_state
+                if s_state:
+                    self.sequencers[index].load_state(s_state)
+
+            self.metronome_param.set(state['metronome'])
+            self.tempo_param.set(state['tempo'])
