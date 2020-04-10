@@ -9,6 +9,7 @@ from rx.subject import Subject
 class SequencerEvent:
     position: float
     message: mido.Message
+    created_at: float = 0
 
     def clone(self):
         ret = replace(self)
@@ -93,6 +94,7 @@ class Sequencer:
         self.lock = threading.RLock()
 
         self.start_scheduled = False
+        self.stop_scheduled = False
 
         self.quantizer_filter = QuantizerFilter(self.app, self)
         self.offset_filter = OffsetFilter(self.app, self)
@@ -112,6 +114,9 @@ class Sequencer:
                 event_map = {}
             else:
                 event_map = self.get_open_events_at_position(self.get_position(), events=self.filtered_events)
+            for n in list(event_map.keys()):
+                if event_map[n].created_at is not None and time.time() - event_map[n].created_at < 1:
+                    del event_map[n]
             self.set_notes_on({x.message.note: x.message for x in event_map.values()})
 
     def get_position(self):
@@ -140,7 +145,8 @@ class Sequencer:
 
     def schedule_start(self):
         self.start_scheduled = True
-        self.schedule(lambda sp: self.start(start_position=sp))
+        self.stop_scheduled = False
+        self.schedule(lambda sp: self.start(start_position=sp) if self.start_scheduled else None)
 
     def schedule_record(self):
         if not self.running:
@@ -149,6 +155,7 @@ class Sequencer:
 
     def start(self, start_position=None):
         self.start_scheduled = False
+        self.stop_scheduled = False
         self.start_position = start_position or self.app.tempo.get_position()
         self.running = True
 
@@ -162,9 +169,13 @@ class Sequencer:
         self.close_open_notes()
 
     def schedule_stop(self):
-        self.schedule(lambda st: self.stop())
+        self.start_scheduled = False
+        self.stop_scheduled = True
+        self.schedule(lambda st: self.stop() if self.stop_scheduled else None)
 
     def stop(self):
+        self.start_scheduled = False
+        self.stop_scheduled = False
         self.running = False
         if self.recording:
             self.recording = False
@@ -277,7 +288,7 @@ class Sequencer:
                     if message.note not in self.currently_recording_notes:
                         self.currently_recording_notes[message.note] = event
                         self.currently_on[message.note] = event
-                        self.events.append(event)
+                        # self.events.append(event)
                 if message.type == 'note_off':
                     if message.note in self.currently_recording_notes:
                         self.remove_notes_between(
@@ -286,6 +297,7 @@ class Sequencer:
                             position,
                             self.currently_recording_notes[message.note],
                         )
+                        self.events.append(self.currently_recording_notes[message.note])
                         del self.currently_recording_notes[message.note]
                         self.events.append(event)
                     if message.note in self.currently_on:

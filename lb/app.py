@@ -113,7 +113,7 @@ class OffsetParam:
     def to_str(self, v):
         if v > 0:
             return f'+{v:.1f}'
-        return f'-{v:.1f}'
+        return f'{v:.1f}'
 
 
 class LengthParam:
@@ -165,7 +165,7 @@ class TempoParam:
 
 
 class InputChannelParam:
-    name = 'Input ch.'
+    name = 'Input channel'
     type = 'midi-channel'
 
     def __init__(self, app):
@@ -189,7 +189,7 @@ class InputChannelParam:
 
 
 class OutputChannelParam:
-    name = 'Output ch.'
+    name = 'Output channel'
     type = 'midi-channel'
 
     def __init__(self, app):
@@ -260,7 +260,7 @@ class NoteLengthParam(BaseNoteParam):
 
     def __init__(self, app):
         self.app = app
-        self.options = list(range(1, 32 * 16))
+        self.options = list(range(0, 32 * 16))
 
     def get(self):
         on, off = self._get_events()
@@ -281,7 +281,7 @@ class NoteLengthParam(BaseNoteParam):
         return True
 
     def to_str(self, v):
-        return f'{v:.1f}'
+        return f'{(v / 32):.2f}'
 
 
 class NoteVelocityParam(BaseNoteParam):
@@ -312,6 +312,62 @@ class NoteVelocityParam(BaseNoteParam):
 
     def to_str(self, v):
         return str(v)
+
+
+class QuantizerParamGroup:
+    name = 'Quantizer'
+
+    def __init__(self, app):
+        self.param1 = QuantizerParam(app)
+        self.param2 = None  # Swing
+
+
+class GateParamGroup:
+    name = 'Gate'
+
+    def __init__(self, app):
+        self.param1 = GateLengthParam(app)
+        self.param2 = OffsetParam(app)
+
+
+class PatternParamGroup:
+    name = 'Pattern'
+
+    def __init__(self, app):
+        self.param1 = LengthParam(app)
+        self.param2 = None
+
+
+class MIDIParamGroup:
+    name = 'MIDI'
+
+    def __init__(self, app):
+        self.param1 = InputChannelParam(app)
+        self.param2 = OutputChannelParam(app)
+
+
+class TempoParamGroup:
+    name = 'Tempo'
+
+    def __init__(self, app):
+        self.param1 = TempoParam(app)
+        self.param2 = MetronomeParam(app)
+
+
+class NoteParamGroup:
+    name = 'Note'
+
+    def __init__(self, app):
+        self.param1 = NotePitchParam(app)
+        self.param2 = NoteLengthParam(app)
+
+
+class VelocityParamGroup:
+    name = 'Velocity'
+
+    def __init__(self, app):
+        self.param1 = NoteVelocityParam(app)
+        self.param2 = None
 
 
 class App:
@@ -363,41 +419,48 @@ class App:
         self.current_scope = 'sequencer'
         self.metronome_param = MetronomeParam(self)
         self.tempo_param = TempoParam(self)
-        self.scope_params = {
+        self.scope_param_groups = {
             'global': [
-                MetronomeParam(self),
+                # MetronomeParam(self),
             ],
             'sequencer': [
-                QuantizerParam(self),
-                GateLengthParam(self),
-                OffsetParam(self),
-                LengthParam(self),
-                self.tempo_param,
-                self.metronome_param,
-                InputChannelParam(self),
-                OutputChannelParam(self),
+                # QuantizerParam(self),
+                # GateLengthParam(self),
+                # OffsetParam(self),
+                # LengthParam(self),
+                # self.tempo_param,
+                # self.metronome_param,
+                # InputChannelParam(self),
+                # OutputChannelParam(self),
+                GateParamGroup(self),
+                QuantizerParamGroup(self),
+                PatternParamGroup(self),
+                MIDIParamGroup(self),
+                TempoParamGroup(self),
             ],
             'note': [
-                NotePitchParam(self),
-                NoteLengthParam(self),
-                NoteVelocityParam(self),
+                NoteParamGroup(self),
+                VelocityParamGroup(self),
             ],
         }
-        self.current_param = {
-            'sequencer': self.scope_params['sequencer'][0],
-            'note': self.scope_params['note'][0],
+        self.current_param_group = {
+            'sequencer': self.scope_param_groups['sequencer'][1],
+            'note': self.scope_param_groups['note'][0],
         }
 
         self.controls.rotary_param.left.subscribe(lambda _: self.param_next())
         self.controls.rotary_param.right.subscribe(lambda _: self.param_prev())
-        self.controls.rotary_value.left.subscribe(lambda _: self.value_dec())
-        self.controls.rotary_value.right.subscribe(lambda _: self.value_inc())
+        self.controls.rotary_value1.left.subscribe(lambda _: self.value_dec(lambda x: x.param1))
+        self.controls.rotary_value1.right.subscribe(lambda _: self.value_inc(lambda x: x.param1))
+        self.controls.rotary_value2.left.subscribe(lambda _: self.value_dec(lambda x: x.param2))
+        self.controls.rotary_value2.right.subscribe(lambda _: self.value_inc(lambda x: x.param2))
         self.controls.play_button.press.subscribe(lambda _: self.on_play())
         self.controls.stop_button.press.subscribe(lambda _: self.on_stop())
         self.controls.record_button.press.subscribe(lambda _: self.on_record())
         self.controls.clear_button.press.subscribe(lambda _: self.on_clear())
         self.controls.scope_button.press.subscribe(lambda _: self.on_scope())
-        self.controls.ok_button.press.subscribe(lambda _: self.on_ok())
+        self.controls.ok_button1.press.subscribe(lambda _: self.on_ok(lambda x: x.param1))
+        self.controls.ok_button2.press.subscribe(lambda _: self.on_ok(lambda x: x.param2))
 
         for i in range(len(self.controls.number_buttons)):
             self.controls.number_buttons[i].press.subscribe((lambda i: lambda _: self.on_number(i))(i))
@@ -419,6 +482,7 @@ class App:
 
         self.sequencer_is_empty[s] = False
         self.selected_event = None
+        self.current_scope = 'sequencer'
 
         self.selected_sequencer = s
         self.selected_sequencer.thru = True
@@ -434,7 +498,7 @@ class App:
             events = [x for x in self.selected_sequencer.events if x.message.type == 'note_on']
             self.selected_event = list_prev(events, self.selected_event)
         else:
-            self.current_param[self.current_scope] = list_prev(self.scope_params[self.current_scope], self.current_param[self.current_scope])
+            self.current_param_group[self.current_scope] = list_prev(self.scope_param_groups[self.current_scope], self.current_param_group[self.current_scope])
 
     def param_next(self):
         if self.controls.shift_button.pressed:
@@ -442,27 +506,21 @@ class App:
             events = [x for x in self.selected_sequencer.events if x.message.type == 'note_on']
             self.selected_event = list_next(events, self.selected_event)
         else:
-            self.current_param[self.current_scope] = list_next(self.scope_params[self.current_scope], self.current_param[self.current_scope])
+            self.current_param_group[self.current_scope] = list_next(self.scope_param_groups[self.current_scope], self.current_param_group[self.current_scope])
 
-    def value_dec(self):
-        self.current_param[self.current_scope].set(
-            list_prev(
-                self.current_param[self.current_scope].options,
-                self.current_param[self.current_scope].get()
-            )
-        )
-        self.sequencer_is_empty[self.selected_sequencer] = False
-        self.save_state()
+    def value_dec(self, parameter_getter):
+        param = parameter_getter(self.current_param_group[self.current_scope])
+        if param:
+            param.set(list_prev(param.options, param.get()))
+            self.sequencer_is_empty[self.selected_sequencer] = False
+            self.save_state()
 
-    def value_inc(self):
-        self.current_param[self.current_scope].set(
-            list_next(
-                self.current_param[self.current_scope].options,
-                self.current_param[self.current_scope].get()
-            )
-        )
-        self.sequencer_is_empty[self.selected_sequencer] = False
-        self.save_state()
+    def value_inc(self, parameter_getter):
+        param = parameter_getter(self.current_param_group[self.current_scope])
+        if param:
+            param.set(list_next(param.options, param.get()))
+            self.sequencer_is_empty[self.selected_sequencer] = False
+            self.save_state()
 
     def on_number(self, i):
         if self.controls.shift_button.pressed:
@@ -471,9 +529,11 @@ class App:
         else:
             self.select_sequencer(self.sequencers[self.selected_sequencer_bank * self.sequencer_bank_size + i])
 
-    def on_ok(self):
-        self.current_param[self.current_scope].ok()
-        self.save_state()
+    def on_ok(self, parameter_getter):
+        param = parameter_getter(self.current_param_group[self.current_scope])
+        if param:
+            param.ok()
+            self.save_state()
 
     def on_play(self):
         if self.selected_sequencer.running:
@@ -487,7 +547,7 @@ class App:
             self.selected_sequencer.schedule_start()
 
         for s in self.sequencers:
-            if s != self.selected_sequencer and s.output_channel == self.selected_sequencer.output_channel:
+            if s.running and s != self.selected_sequencer and s.output_channel == self.selected_sequencer.output_channel:
                 if self.controls.shift_button.pressed:
                     s.stop()
                 else:
@@ -519,8 +579,10 @@ class App:
         self.save_state()
 
     def on_clear(self):
-        self.selected_sequencer.reset()
-        self.sequencer_is_empty[self.selected_sequencer] = True
+        if not self.selected_sequencer.events:
+            self.sequencer_is_empty[self.selected_sequencer] = True
+        else:
+            self.selected_sequencer.reset()
         self.save_state()
 
     def on_scope(self):

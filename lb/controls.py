@@ -88,18 +88,20 @@ class Controls(threading.Thread):
 
         self.shift_button = Button(110, key=pygame.K_LSHIFT)
         self.play_button = Button(21, key=pygame.K_SPACE)
-        self.stop_button = Button(20, key=pygame.K_s)
+        self.stop_button = Button(20, key=pygame.K_ESCAPE)
         self.record_button = Button(16, key=pygame.K_r)
         self.clear_button = Button(19, key=pygame.K_c)
         self.scope_button = Button(111, key=pygame.K_BACKSPACE)
-        self.ok_button = Button(2, key=pygame.K_RETURN)
         self.number_buttons = [
             Button(pin, key=pygame.K_1 + index)
             for index, pin
             in enumerate([17, 27, 27, 27])
         ]
         self.rotary_param = Rotary(13, 26, key_left=pygame.K_DOWN, key_right=pygame.K_UP)
-        self.rotary_value = Rotary(108, 109, key_left=pygame.K_LEFT, key_right=pygame.K_RIGHT)
+        self.rotary_value1 = Rotary(108, 109, key_left=pygame.K_q, key_right=pygame.K_w)
+        self.ok_button1 = Button(2, key=pygame.K_e)
+        self.rotary_value2 = Rotary(112, 114, key_left=pygame.K_a, key_right=pygame.K_s)
+        self.ok_button2 = Button(2, key=pygame.K_d)
 
         self.items = [
             self.shift_button,
@@ -107,10 +109,12 @@ class Controls(threading.Thread):
             self.stop_button,
             self.clear_button,
             self.record_button,
-            self.ok_button,
             self.scope_button,
             self.rotary_param,
-            self.rotary_value,
+            self.rotary_value1,
+            self.ok_button1,
+            self.rotary_value2,
+            self.ok_button2,
         ] + self.number_buttons
 
     def run(self):
