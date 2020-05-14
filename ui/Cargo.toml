@@ -1,0 +1,14 @@
+[package]
+name = "loop_bastard_ui"
+version = "0.1.0"
+authors = ["Eugene Pankov <john.pankov@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+sdl2 = "0.34"
+log = "0.4"
+syn = "1.0"
+quote = "1.0"
