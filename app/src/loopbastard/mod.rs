@@ -1,10 +1,12 @@
+mod app;
 mod clock;
 mod display;
-mod midi;
-mod util;
-pub mod views;
+mod midi_input;
+pub mod fonts;
 
-pub use clock::{AsyncTicking, Clock};
+pub mod views;
+pub use app::{AsyncTicking, App};
+pub use clock::Clock;
 pub use display::Display;
-pub use self::midi::MIDIInput;
-pub use util::WithThread;
+pub use midi_input::MIDIInput;
+pub mod util;

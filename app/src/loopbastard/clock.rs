@@ -1,48 +1,45 @@
-use std::time::Duration;
-use std::vec::Vec;
-use std::sync::Mutex;
-
-pub trait AsyncTicking {
-    fn get_tick_interval(&self) -> u32;
-    fn tick(&mut self, clock: &Clock);
-}
+use std::time::Instant;
 
 pub struct Clock {
-    pub ticks: u64,
-    ticking_objects: Vec<Mutex<Box<AsyncTicking>>>,
-    ticking_intervals: Vec<u32>,
+    _ticks: u32,
+    _last_tick: Instant,
+    bpm: f32,
+    pub bar_size: u32,
 }
+
+const TICKS_PER_BEAT: u32 = 24;
 
 impl Clock {
     pub fn new() -> Self {
         return Clock {
-            ticks: 0,
-            ticking_objects: Vec::new(),
-            ticking_intervals: Vec::new(),
+            _ticks: 0,
+            _last_tick: Instant::now(),
+            bpm: 1.0,
+            bar_size: 4,
         };
     }
 
     pub fn tick(&mut self) {
-        self.ticks += 1;
-        for (index, obj) in self.ticking_objects.iter().enumerate() {
-            if self.ticking_intervals[index] == 0 {
-                let mut unwrapped = obj.lock().unwrap();
-                unwrapped.tick(&self);
-                self.ticking_intervals[index] = unwrapped.get_tick_interval();
-            }
-            self.ticking_intervals[index] -= 1;
-        }
+        self._ticks += 1;
+        let now = Instant::now();
+        let dt = now - self._last_tick;
+        self._last_tick = now;
+        let bpm = (60000000 / 24) as f32 / dt.as_micros() as f32;
+        self.bpm = self.bpm * 0.5 + bpm * 0.5;
+        println!("{}", self.bpm);
     }
 
-    pub fn register(&mut self, obj: Box<AsyncTicking>) {
-        self.ticking_objects.push(Mutex::new(obj));
-        self.ticking_intervals.push(0);
+    #[inline]
+    pub fn ticks(&self) -> u32 {
+        self._ticks
     }
 
-    pub fn run(&mut self) {
-        loop {
-            self.tick();
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
-        }
+    #[inline]
+    pub fn beats(&self) -> u32 {
+        self._ticks / TICKS_PER_BEAT
+    }
+
+    pub fn beat_progress(&self) -> f32 {
+        return (self._ticks % TICKS_PER_BEAT) as f32 / TICKS_PER_BEAT as f32;
     }
 }

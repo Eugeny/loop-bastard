@@ -1,19 +1,17 @@
 extern crate crossbeam_utils;
 extern crate sdl2;
 
-use super::clock::{AsyncTicking, Clock};
 use super::views::View;
+use super::{App, AsyncTicking};
 use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 
-
 pub struct Display {
     pub root_view: Box<View>,
     event_pump: sdl2::EventPump,
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
-    i: u8,
 }
 
 impl Display {
@@ -21,7 +19,7 @@ impl Display {
         let context = sdl2::init().unwrap();
         let video_subsystem = context.video().unwrap();
 
-        let window = video_subsystem.window("rust-sdl2 demo", 800, 400)
+        let window = video_subsystem.window("rust-sdl2 demo", 800, 480)
             .position_centered()
             .build()
             .unwrap();
@@ -37,7 +35,6 @@ impl Display {
         return Display {
             root_view: root,
             event_pump: event_pump,
-            i: 0,
             canvas: canvas,
         };
     }
@@ -48,8 +45,7 @@ impl AsyncTicking for Display {
         return 1;
     }
 
-    fn tick(&mut self, clock: &Clock) {
-        self.i = (self.i + 1) % 255;
+    fn tick(&mut self, app: &mut App) {
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.canvas.clear();
         for event in self.event_pump.poll_iter() {
@@ -66,8 +62,7 @@ impl AsyncTicking for Display {
         let rect = Rect::new(0, 0, output_size.0, output_size.1);
         self.root_view.set_position(0, 0);
         self.root_view.set_size(rect.width(), rect.height());
-        self.root_view.layout_recursive();
-        self.root_view.render_recursive(&mut self.canvas, &rect);
+        self.root_view.render_recursive(app, &mut self.canvas, &rect);
 
         self.canvas.present();
     }

@@ -3,7 +3,7 @@ use sdl2::rect::Rect;
 use std::rc::Rc;
 
 use loop_bastard_ui::View;
-use super::{StatusBarView, Canvas, View, ViewBase, ViewInner};
+use super::{StatusBarView, Canvas, View, ViewBase, ViewInner, App};
 
 #[derive(View)]
 pub struct RootView {
@@ -25,7 +25,7 @@ impl ViewBase for RootView {
         f(&mut self.status_bar);
     }
 
-    fn layout(&mut self) {
-        self.status_bar.set_size(self.inner.w, 60);
+    fn render(&mut self, app: &mut App, canvas: &mut Canvas, rect: &Rect) {
+        self.status_bar.set_size(self.inner.w, 40);
     }
 }

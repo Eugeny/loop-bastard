@@ -28,16 +28,9 @@ pub fn view_macro_derive(input: TokenStream) -> TokenStream {
                 return &mut self.inner;
             }
 
-            fn layout_recursive(&mut self) {
-                self.layout();
-                self.foreach_child(|child| {
-                    child.layout_recursive();
-                });
-            }
-
-            fn render_recursive(&mut self, canvas: &mut Canvas, rect: &Rect) {
+            fn render_recursive(&mut self, app: &mut App, canvas: &mut Canvas, rect: &Rect) {
                 let clip_rect = canvas.clip_rect();
-                self.render(canvas, rect);
+                self.render(app, canvas, rect);
                 self.foreach_child(|child| {
                     let mut target_rect = Rect::new(
                         rect.x() + child.get_inner().x,
@@ -46,7 +39,7 @@ pub fn view_macro_derive(input: TokenStream) -> TokenStream {
                         child.get_inner().h,
                     );
                     canvas.set_clip_rect(target_rect);
-                    child.render_recursive(canvas, &target_rect);
+                    child.render_recursive(app, canvas, &target_rect);
                 });
                 canvas.set_clip_rect(clip_rect);
             }

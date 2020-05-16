@@ -5,7 +5,6 @@ authors = ["Eugene Pankov <john.pankov@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-sdl2 = "0.34"
 crossbeam-utils = "0.7"
 midir = "0.5"
 coremidi = "0.4.0"
@@ -13,4 +12,10 @@ log = "0.4"
 simple_logger = "1.6"
 midi = "0.1"
 types = "0.1"
+lazy_static = "1.4.0"
 loop_bastard_ui = { path = "../ui" }
+
+[dependencies.sdl2]
+version = "0.34"
+default-features = true
+features = ["ttf"]

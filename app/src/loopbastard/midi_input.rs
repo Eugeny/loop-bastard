@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::time::{Instant, Duration};
 use midir::{MidiInput, MidiInputConnection};
 use std::collections::HashMap;
-use super::clock::{Clock};
+use super::App;
 
 const MIDI_NAME: &str = "LoopBastard";
 
@@ -59,11 +59,10 @@ impl Message {
 }
 
 struct MIDIInputConnection {
-    connection: MidiInputConnection<()>,
+    _connection: MidiInputConnection<()>,
     last_message: Instant,
     message_queue: Arc<Mutex<Vec<Message>>>,
 }
-
 
 pub struct MIDIInput {
     midi_input: MidiInput,
@@ -80,44 +79,57 @@ impl MIDIInput {
         };
     }
 
-    pub fn tick(&mut self, clock: &mut Clock) {
+    pub fn tick(&mut self, app: &mut App) {
         let names: Vec<(usize, String)> = (0..self.midi_input.port_count()).into_iter().filter_map(|i| {
             self.midi_input.port_name(i).map(|x| (i, x)).ok()
         }).collect();
-        for (index, name) in names {
-            if !self.connections.contains_key(&name) {
+
+        for (index, name) in names.iter() {
+            if !self.connections.contains_key(name) {
                 info!("New input port: {}", name);
-            }
 
-            let queue = Arc::new(Mutex::new(Vec::new()));
-            let q = queue.clone();
-            let connection = MidiInput::new(MIDI_NAME).unwrap().connect(index, &name, move |_, message, _| {
-                q.lock().unwrap().push(Message::from(message));
-            }, ());
+                let queue = Arc::new(Mutex::new(Vec::new()));
+                let q = queue.clone();
+                let connection = MidiInput::new(MIDI_NAME).unwrap().connect(*index, name, move |_, message, _| {
+                    q.lock().unwrap().push(Message::from(message));
+                }, ());
 
-            if connection.is_ok() {
-                self.connections.insert(name, MIDIInputConnection {
-                    connection: connection.unwrap(),
-                    last_message: Instant::now(),
-                    message_queue: queue,
-                });
-            } else {
-                self.failed_ports.push(name);
+                if connection.is_ok() {
+                    self.connections.insert(name.clone(), MIDIInputConnection {
+                        _connection: connection.unwrap(),
+                        last_message: Instant::now(),
+                        message_queue: queue,
+                    });
+                } else {
+                    self.failed_ports.push(name.clone());
+                }
             }
         }
 
-        for connection in self.connections.values() {
+        let mut dead_ports: Vec<String> = Vec::new();
+
+        for (name, connection) in self.connections.iter_mut() {
+            if names.iter().find(|&x| x.1 == *name).is_none() {
+                dead_ports.push(name.clone());
+                continue;
+            }
+
             let mut queue = connection.message_queue.lock().unwrap();
             if queue.len() > 0 {
                 connection.last_message = Instant::now();
             }
             for message in queue.iter() {
                 if let Message::TimingClock = message {
-                    clock.tick();
+                    app.tick_clock();
                 }
-                debug!("Messsage: {:?}", message);
+                // debug!("Messsage: {:?}", message);
             }
             queue.clear();
+        }
+
+        for name in dead_ports {
+            info!("Lost input port: {}", &name);
+            self.connections.remove(&name);
         }
     }
 }
