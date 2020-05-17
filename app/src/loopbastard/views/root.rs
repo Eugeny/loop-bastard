@@ -1,9 +1,8 @@
 extern crate loop_bastard_ui;
 use sdl2::rect::Rect;
-use std::rc::Rc;
 
 use loop_bastard_ui::View;
-use super::{StatusBarView, Canvas, View, ViewBase, ViewInner, App};
+use super::{StatusBarView, View, ViewBase, ViewInner, RenderContext};
 
 #[derive(View)]
 pub struct RootView {
@@ -21,11 +20,11 @@ impl RootView {
 }
 
 impl ViewBase for RootView {
-    fn foreach_child<F>(&mut self, mut f: F) where F: FnMut(&mut View) {
+    fn foreach_child<F>(&mut self, mut f: F) where F: FnMut(&mut dyn View) {
         f(&mut self.status_bar);
     }
 
-    fn render(&mut self, app: &mut App, canvas: &mut Canvas, rect: &Rect) {
+    fn render(&mut self, context: &mut RenderContext, rect: &Rect) {
         self.status_bar.set_size(self.inner.w, 40);
     }
 }

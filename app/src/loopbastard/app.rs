@@ -12,16 +12,13 @@ pub trait AsyncTicking {
 
 pub struct App {
     pub clock: Clock,
-    pub display: Display,
 }
 
 impl App {
     pub fn new() -> Self {
         simple_logger::init().unwrap();
-        let root = Box::new(RootView::new());
         return Self {
             clock: Clock::new(),
-            display: Display::new(root),
         };
     }
 
@@ -31,6 +28,8 @@ impl App {
 
     pub fn run(&mut self) {
         let mut midi = MIDIInput::new();
+        let mut root = Box::new(RootView::new());
+        let mut display = Display::new(root);
         //clock.register(midi);
         //clock.register(display);
 

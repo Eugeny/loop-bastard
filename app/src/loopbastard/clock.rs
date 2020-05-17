@@ -3,7 +3,7 @@ use std::time::Instant;
 pub struct Clock {
     _ticks: u32,
     _last_tick: Instant,
-    bpm: f32,
+    pub bpm: f32,
     pub bar_size: u32,
 }
 

@@ -16,6 +16,6 @@ lazy_static = "1.4.0"
 loop_bastard_ui = { path = "../ui" }
 
 [dependencies.sdl2]
-version = "0.34"
+version = "0.31"
 default-features = true
-features = ["ttf"]
+features = ["ttf", "image", "unsafe_textures"]
