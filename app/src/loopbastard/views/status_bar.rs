@@ -12,6 +12,7 @@ pub struct StatusBarView {
     inner: ViewInner,
     bpm_text: TextView,
     midi_in_text: TextView,
+    clock_source_text: TextView,
 }
 
 impl StatusBarView {
@@ -20,6 +21,7 @@ impl StatusBarView {
             inner: ViewInner::new(),
             bpm_text: TextView::new("- BPM", Color::RGB(255, 255, 255)),
             midi_in_text: TextView::new("IN", Color::RGB(128, 128, 128)),
+            clock_source_text: TextView::new("INT", Color::RGB(255, 0, 0)),
         };
     }
 }
@@ -61,6 +63,12 @@ impl ViewBase for StatusBarView {
         self.bpm_text.set_alignment(Alignment::Right);
         self.bpm_text.set_text(format!("{} BPM", clock.bpm as u32));
 
+        self.clock_source_text.set_position(310, PADDING);
+        self.clock_source_text.set_size(100, rect.height());
+        self.clock_source_text.set_alignment(Alignment::Left);
+        self.clock_source_text.set_text(String::from(if clock.has_external_clock() {"EXT"} else {"INT"}));
+        self.clock_source_text.set_color(if clock.has_external_clock() {Color::RGB(0, 255, 0)} else {Color::RGB(255, 0, 0)});
+
         self.midi_in_text.set_size(100, rect.height());
         self.midi_in_text.set_position(PADDING, PADDING);
         self.midi_in_text.set_alignment(Alignment::Left);
@@ -77,5 +85,6 @@ impl ViewBase for StatusBarView {
     fn foreach_child<F>(&mut self, mut f: F) where F: FnMut(&mut dyn View) {
         f(&mut self.bpm_text);
         f(&mut self.midi_in_text);
+        f(&mut self.clock_source_text);
     }
 }

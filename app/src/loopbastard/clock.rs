@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Instant, Duration};
 use log::debug;
 use super::events::{AppEvent, EventHandler, EventLoop};
 use super::{App, Message};
@@ -6,6 +6,7 @@ use super::{App, Message};
 pub struct Clock {
     _ticks: u32,
     _last_tick: Instant,
+    _last_external_tick: Instant,
     pub bpm: f32,
     pub bar_size: u32,
 }
@@ -17,6 +18,7 @@ impl Clock {
         return Clock {
             _ticks: 0,
             _last_tick: Instant::now(),
+            _last_external_tick: Instant::now() - Duration::from_secs(3600),
             bpm: 1.0,
             bar_size: 4,
         };
@@ -24,6 +26,7 @@ impl Clock {
 
     pub fn external_tick(&mut self) {
         self.tick();
+        self._last_external_tick = Instant::now();
     }
 
     pub fn tick(&mut self) {
@@ -33,7 +36,7 @@ impl Clock {
         self._last_tick = now;
         if dt.as_micros() > 0 {
             let bpm = (60000000 / 24) as f32 / dt.as_micros() as f32;
-            self.bpm = self.bpm * 0.5 + bpm * 0.5;
+            self.bpm = self.bpm * 0.9 + bpm * 0.1;
         }
     }
 
@@ -50,10 +53,14 @@ impl Clock {
     pub fn beat_progress(&self) -> f32 {
         return (self._ticks % TICKS_PER_BEAT) as f32 / TICKS_PER_BEAT as f32;
     }
+
+    pub fn has_external_clock(&self) -> bool {
+        return Instant::now() - self._last_external_tick < Duration::from_millis(1000);
+    }
 }
 
 impl EventHandler for Clock {
-    fn handle_event(&mut self, app: &App, event: AppEvent, event_loop: &mut EventLoop) {
+    fn handle_event(&mut self, app: &App, event: &AppEvent, event_loop: &mut EventLoop) {
         match event {
             AppEvent::MIDIMessage(message) => {
                 match message {
