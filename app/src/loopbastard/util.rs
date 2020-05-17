@@ -14,7 +14,6 @@ pub trait WithThread where Self: std::marker::Send {
 
 pub fn get_beat_color (clock: &Clock, color1: &Color, color2: &Color) -> Color {
     let p = clock.beat_progress();
-    let c = (color1.r as f32 + (color2.r as f32 - color1.r as f32 * p)) as u8;
     return Color::RGB(
         (color1.r as f32 + (color2.r as f32 - color1.r as f32) * p) as u8,
         (color1.g as f32 + (color2.g as f32 - color1.g as f32) * p) as u8,

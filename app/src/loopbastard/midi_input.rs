@@ -1,18 +1,18 @@
 extern crate log;
 extern crate midir;
 extern crate midi;
-use log::{info, debug};
 use std::sync::Arc;
 use std::vec::Vec;
 use std::sync::Mutex;
-use std::time::Instant;
+use std::time::{Instant, Duration};
+use super::events::{AppEvent, EventLoop};
 use midir::{MidiInput, MidiInputConnection};
 use std::collections::HashMap;
-use super::App;
+use log::info;
 
 const MIDI_NAME: &str = "LoopBastard";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Message {
     ActiveSensing,
     Continue,
@@ -59,8 +59,8 @@ impl Message {
 }
 
 struct MIDIInputConnection {
+    pub last_message: Instant,
     _connection: MidiInputConnection<()>,
-    last_message: Instant,
     message_queue: Arc<Mutex<Vec<Message>>>,
 }
 
@@ -79,7 +79,7 @@ impl MIDIInput {
         };
     }
 
-    pub fn tick(&mut self, app: &mut App) {
+    pub fn tick(&mut self, event_loop: &mut EventLoop) {
         let names: Vec<(usize, String)> = (0..self.midi_input.port_count()).into_iter().filter_map(|i| {
             self.midi_input.port_name(i).map(|x| (i, x)).ok()
         }).collect();
@@ -118,11 +118,9 @@ impl MIDIInput {
             if queue.len() > 0 {
                 connection.last_message = Instant::now();
             }
+
             for message in queue.iter() {
-                if let Message::TimingClock = message {
-                    app.tick_clock();
-                }
-                // debug!("Messsage: {:?}", message);
+                event_loop.post(AppEvent::MIDIMessage(message.clone()));
             }
             queue.clear();
         }
@@ -131,5 +129,19 @@ impl MIDIInput {
             info!("Lost input port: {}", &name);
             self.connections.remove(&name);
         }
+    }
+
+    pub fn has_input (&self) -> bool {
+        return self.connections.len() > 0
+    }
+
+    pub fn has_recent_input (&self) -> bool {
+        let now = Instant::now();
+        for connection in self.connections.values() {
+            if now - connection.last_message < Duration::from_millis(20) {
+                return true;
+            }
+        }
+        return false;
     }
 }

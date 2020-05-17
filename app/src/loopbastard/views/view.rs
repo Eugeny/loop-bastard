@@ -5,7 +5,7 @@ use super::TextureCache;
 pub type Canvas = sdl2::render::Canvas<sdl2::video::Window>;
 
 pub struct RenderContext<'a> {
-    pub app: &'a mut App,
+    pub app: &'a App,
     pub texture_cache: &'a mut TextureCache,
     pub canvas: &'a mut Canvas,
 }
@@ -34,6 +34,6 @@ pub trait View {
 }
 
 pub trait ViewBase {
-    fn render(&mut self, context: &mut RenderContext, rect: &Rect) {}
+    fn render(&mut self, _context: &mut RenderContext, _rect: &Rect) {}
     fn foreach_child<F>(&mut self, mut _f: F) where F: FnMut(&mut dyn View) {}
 }

@@ -7,7 +7,14 @@ use loop_bastard_ui::View;
 use std::path::Path;
 
 use super::{View, ViewBase, ViewInner, RenderContext, TextureStore};
-use crate::loopbastard::util::get_beat_color;
+
+
+#[derive(Debug)]
+pub enum Alignment {
+    Left,
+    Center,
+    Right,
+}
 
 #[derive(View)]
 pub struct TextView {
@@ -17,6 +24,7 @@ pub struct TextView {
     texture_store: TextureStore,
     width: u32,
     height: u32,
+    alignment: Alignment,
 }
 
 impl TextView {
@@ -28,12 +36,23 @@ impl TextView {
             texture_store: TextureStore::default(),
             width: 0,
             height: 0,
+            alignment: Alignment::Center,
         };
     }
 
     pub fn set_text(&mut self, text: String) {
-        self.text = text;
-        self.texture_store.clear();
+        if self.text != text {
+            self.text = text;
+            self.texture_store.clear();
+        }
+    }
+
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    pub fn set_alignment(&mut self, alignment: Alignment) {
+        self.alignment = alignment;
     }
 
     fn regenerate (&mut self, context: &mut RenderContext) {
@@ -50,7 +69,7 @@ impl TextView {
             .map_err(|e| e.to_string())
             .unwrap();
 
-        let TextureQuery { width, height, format, .. } = font_texture.query();
+        let TextureQuery { width, height, .. } = font_texture.query();
         self.width = width;
         self.height = height;
         self.texture_store.create_or_resize_texture(context.canvas, width, height);
@@ -76,16 +95,19 @@ impl ViewBase for TextView {
             self.regenerate(context);
         }
         let mut texture = self.texture_store.get_mut_ref();
+        texture.set_color_mod(self.color.r, self.color.g, self.color.b);
         texture.set_blend_mode(BlendMode::Blend);
-        context.canvas.copy(
-            texture,
-            None,
-            Rect::new(
-                rect.left(),
-                rect.top(),
-                self.width,
-                self.height,
-            )
-        ).unwrap();
+
+        let mut destination = Rect::new(rect.left(), rect.top(), self.width, self.height);
+        match self.alignment {
+            Alignment::Right => {
+                destination.set_x(rect.right() - self.width as i32)
+            },
+            Alignment::Center => {
+                destination.set_x(rect.left() + rect.width() as i32 / 2 - (self.width / 2) as i32)
+            },
+            _ => {},
+        }
+        context.canvas.copy(texture, None, destination).unwrap();
     }
 }

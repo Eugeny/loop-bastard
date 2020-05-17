@@ -24,7 +24,7 @@ impl ViewBase for RootView {
         f(&mut self.status_bar);
     }
 
-    fn render(&mut self, context: &mut RenderContext, rect: &Rect) {
+    fn render(&mut self, _context: &mut RenderContext, _rect: &Rect) {
         self.status_bar.set_size(self.inner.w, 40);
     }
 }

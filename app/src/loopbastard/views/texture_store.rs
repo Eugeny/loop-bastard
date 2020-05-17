@@ -15,7 +15,6 @@
 
 use sdl2::render::{Canvas, Texture};
 use sdl2::video::Window;
-use sdl2::pixels::PixelFormatEnum;
 
 /// This is a store used by the `TextureStore`.
 #[derive(Default)]
@@ -67,7 +66,7 @@ impl TextureStore {
             self.height = height;
             self.store = Some(c.create_texture_target(None, width, height).unwrap());
 
-            eprintln!("Created texture: size={}x{}", width, height);
+            //eprintln!("Created texture: size={}x{}", width, height);
         }
     }
 }
