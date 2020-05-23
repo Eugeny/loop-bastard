@@ -20,6 +20,7 @@ pub enum Alignment {
 pub struct TextView {
     inner: ViewInner,
     text: String,
+    size: u16,
     color: Color,
     texture_store: TextureStore,
     width: u32,
@@ -36,6 +37,7 @@ impl TextView {
             texture_store: TextureStore::default(),
             width: 0,
             height: 0,
+            size: 24,
             alignment: Alignment::Center,
         };
     }
@@ -43,6 +45,13 @@ impl TextView {
     pub fn set_text(&mut self, text: String) {
         if self.text != text {
             self.text = text;
+            self.texture_store.clear();
+        }
+    }
+
+    pub fn set_font_size(&mut self, size: u16) {
+        if self.size != size {
+            self.size = size;
             self.texture_store.clear();
         }
     }
@@ -56,7 +65,7 @@ impl TextView {
     }
 
     fn regenerate (&mut self, context: &mut RenderContext) {
-        let font = context.texture_cache.get_ttf_context().load_font(Path::new("bryant.ttf"), 24).unwrap();
+        let font = context.texture_cache.get_ttf_context().load_font(Path::new("fonts/bryant.ttf"), self.size).unwrap();
         let texture_creator = context.canvas.texture_creator();
 
         let surface = font
@@ -86,6 +95,8 @@ impl TextView {
                 .unwrap();
         })
         .unwrap();
+
+        unsafe { font_texture.destroy(); }
     }
 }
 
@@ -94,7 +105,7 @@ impl ViewBase for TextView {
         if self.texture_store.get_optional_ref().is_none() {
             self.regenerate(context);
         }
-        let mut texture = self.texture_store.get_mut_ref();
+        let texture = self.texture_store.get_mut_ref();
         texture.set_color_mod(self.color.r, self.color.g, self.color.b);
         texture.set_blend_mode(BlendMode::Blend);
 

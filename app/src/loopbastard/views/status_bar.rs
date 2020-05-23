@@ -35,6 +35,10 @@ impl ViewBase for StatusBarView {
         let border_color: Color = Color::RGB(128, 128, 128);
         let beat_color: Color = Color::RGB(255, 255, 255);
 
+        let clock = context.app.clock.borrow();
+        let state = context.app.state.borrow();
+        let midi_input = context.app.midi_input.borrow();
+
         context.canvas.set_draw_color(background);
         context.canvas.fill_rect(rect.clone()).unwrap();
 
@@ -46,10 +50,8 @@ impl ViewBase for StatusBarView {
             border_size
         )).unwrap();
 
-        let clock = context.app.clock.borrow();
-
-        let beat_width = rect.width() / clock.bar_size;
-        let beat = clock.beats() % clock.bar_size;
+        let beat_width = rect.width() / state.bar_size;
+        let beat = clock.beats() % state.bar_size;
         context.canvas.set_draw_color(get_beat_color(&clock, &beat_color, &border_color));
         context.canvas.fill_rect(Rect::new(
             rect.left() + (beat_width * beat) as i32,
@@ -61,7 +63,14 @@ impl ViewBase for StatusBarView {
         self.bpm_text.set_size(200, rect.height());
         self.bpm_text.set_position(100, PADDING);
         self.bpm_text.set_alignment(Alignment::Right);
-        self.bpm_text.set_text(format!("{} BPM", clock.bpm as u32));
+
+        if clock.has_external_clock() {
+            self.clock_source_text.set_text(String::from("EXT"));
+            self.bpm_text.set_text(format!("{} BPM", clock.bpm as u32));
+        } else {
+            self.clock_source_text.set_text(String::from("INT"));
+            self.bpm_text.set_text(format!("{} BPM", state.internal_bpm));
+        }
 
         self.clock_source_text.set_position(310, PADDING);
         self.clock_source_text.set_size(100, rect.height());
@@ -73,9 +82,9 @@ impl ViewBase for StatusBarView {
         self.midi_in_text.set_position(PADDING, PADDING);
         self.midi_in_text.set_alignment(Alignment::Left);
 
-        if !context.app.midi_input.has_input() {
+        if !midi_input.has_input() {
             self.midi_in_text.set_color(Color::RGB(255, 0, 0))
-        } else if context.app.midi_input.has_recent_input() {
+        } else if midi_input.has_recent_input() {
             self.midi_in_text.set_color(Color::RGB(255, 255, 255))
         } else {
             self.midi_in_text.set_color(Color::RGB(128, 128, 128))

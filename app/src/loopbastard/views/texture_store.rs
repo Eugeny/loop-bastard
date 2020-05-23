@@ -53,7 +53,9 @@ impl TextureStore {
     }
 
     pub fn clear(&mut self) {
-        self.store = None;
+        if !self.store.is_none() {
+            unsafe { self.store.take().unwrap().destroy(); }
+        }
     }
 
     /// This is used to create a new `Texture` object that can be drawn against.  If the `Widget` is
@@ -64,6 +66,7 @@ impl TextureStore {
         if self.store.is_none() || self.width != width || self.height != height {
             self.width = width;
             self.height = height;
+            self.clear();
             self.store = Some(c.create_texture_target(None, width, height).unwrap());
 
             //eprintln!("Created texture: size={}x{}", width, height);

@@ -1,18 +1,23 @@
-use super::Message;
-use super::App;
+use super::{App, Message, Button};
 use std::collections::VecDeque;
-use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
     MIDIMessage(Message),
-    SDLEvent(Event),
+    MIDIOutputMessage(Message),
+    MIDIIOScan,
+    SDLKeyUp(Keycode),
+    SDLKeyDown(Keycode),
+    ButtonPress(Button),
     ClockTick,
+    InternalClockTick,
+    GlobalQuantizerStep,
     UpdateDisplay,
 }
 
 pub trait EventHandler {
-    fn handle_event(&mut self, app: &App, event: &AppEvent, event_loop: &mut EventLoop);
+    fn handle_event(&mut self, _app: &App, _event: &AppEvent, _event_loop: &mut EventLoop) {}
 }
 
 pub struct EventLoop {

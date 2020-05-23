@@ -1,14 +1,12 @@
 use std::time::{Instant, Duration};
-use log::debug;
 use super::events::{AppEvent, EventHandler, EventLoop};
-use super::{App, Message};
+use super::{App, MessageKind};
 
 pub struct Clock {
     _ticks: u32,
     _last_tick: Instant,
     _last_external_tick: Instant,
     pub bpm: f32,
-    pub bar_size: u32,
 }
 
 const TICKS_PER_BEAT: u32 = 24;
@@ -20,7 +18,6 @@ impl Clock {
             _last_tick: Instant::now(),
             _last_external_tick: Instant::now() - Duration::from_secs(3600),
             bpm: 1.0,
-            bar_size: 4,
         };
     }
 
@@ -61,16 +58,21 @@ impl Clock {
 
 impl EventHandler for Clock {
     fn handle_event(&mut self, app: &App, event: &AppEvent, event_loop: &mut EventLoop) {
+        let state = app.state.borrow();
         match event {
             AppEvent::MIDIMessage(message) => {
-                match message {
-                    Message::TimingClock => {
-                        self.external_tick();
-                        event_loop.post(AppEvent::ClockTick);
-                    },
-                    _ => {
-                        debug!("Messsage: {:?}", message);
-                    },
+                if message.kind == MessageKind::TimingClock {
+                    self.external_tick();
+                    event_loop.post(AppEvent::ClockTick);
+                }
+            },
+            AppEvent::InternalClockTick => {
+                self.tick();
+                event_loop.post(AppEvent::ClockTick);
+            },
+            AppEvent::ClockTick => {
+                if self._ticks % (TICKS_PER_BEAT * state.global_q) == 0 {
+                    event_loop.post(AppEvent::GlobalQuantizerStep);
                 }
             }
             _ => {}

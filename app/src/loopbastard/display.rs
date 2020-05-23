@@ -2,7 +2,7 @@ extern crate crossbeam_utils;
 extern crate sdl2;
 
 use super::views::{View, TextureCache, RenderContext};
-use super::{App, AsyncTicking};
+use super::App;
 use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -24,6 +24,7 @@ impl Display {
 
         let window = video_subsystem.window("rust-sdl2 demo", 800, 480)
             .position_centered()
+            .resizable()
             .build()
             .unwrap();
 
@@ -65,18 +66,18 @@ impl Display {
 
 impl EventHandler for Display {
     fn handle_event(&mut self, app: &App, event: &AppEvent, event_loop: &mut EventLoop) {
+        self.root_view.handle_event_recursive(app, event);
         match event {
             AppEvent::UpdateDisplay => {
                 self.render(app);
                 for sdl_event in self.event_pump.poll_iter() {
                     match sdl_event {
-                        Event::Quit {..} |
-                        Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        Event::Quit {..} => {
                             ::std::process::exit(0);
                         },
-                        _ => {
-                            event_loop.post(AppEvent::SDLEvent(sdl_event))
-                        }
+                        Event::KeyUp { keycode, .. } => event_loop.post(AppEvent::SDLKeyUp(keycode.unwrap_or(Keycode::Stop))),
+                        Event::KeyDown { keycode, .. } => event_loop.post(AppEvent::SDLKeyDown(keycode.unwrap_or(Keycode::Stop))),
+                        _ => (),
                     }
                 }
             }

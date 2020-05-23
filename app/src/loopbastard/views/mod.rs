@@ -1,4 +1,7 @@
+mod bank;
 mod root;
+mod sequencer;
+mod sequencers;
 mod status_bar;
 mod text;
 mod texture_cache;
@@ -9,6 +12,9 @@ pub use super::App;
 pub use view::{Canvas, View, ViewBase, ViewInner, RenderContext};
 pub use root::RootView;
 pub use text::{Alignment, TextView};
+pub use bank::BankView;
+pub use sequencer::SequencerView;
+pub use sequencers::SequencersView;
 pub use status_bar::StatusBarView;
 pub use texture_cache::TextureCache;
 pub use texture_store::TextureStore;
