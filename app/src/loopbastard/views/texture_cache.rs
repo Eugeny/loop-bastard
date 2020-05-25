@@ -45,7 +45,7 @@ impl TextureCache {
 
     /// Loads an image based on the `image_name`, which is the filename for the image to load.
     /// Returns a reference to the `Texture` that was loaded.
-    pub fn get_image(&mut self, c: &mut Canvas<Window>, image_name: String) -> &Texture {
+    pub fn get_image(&mut self, c: &mut Canvas<Window>, image_name: &String) -> &mut Texture {
         self.images.entry(image_name.clone()).or_insert({
             c.texture_creator()
                 .load_texture(Path::new(&image_name))

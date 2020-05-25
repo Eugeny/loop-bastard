@@ -9,7 +9,7 @@ pub struct Clock {
     pub bpm: f32,
 }
 
-const TICKS_PER_BEAT: u32 = 24;
+pub const TICKS_PER_BEAT: u32 = 24;
 
 impl Clock {
     pub fn new() -> Self {
@@ -32,7 +32,7 @@ impl Clock {
         let dt = now - self._last_tick;
         self._last_tick = now;
         if dt.as_micros() > 0 {
-            let bpm = (60000000 / 24) as f32 / dt.as_micros() as f32;
+            let bpm = (60000000 / TICKS_PER_BEAT) as f32 / dt.as_micros() as f32;
             self.bpm = self.bpm * 0.9 + bpm * 0.1;
         }
     }

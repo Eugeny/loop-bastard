@@ -45,8 +45,8 @@ impl ViewBase for BankView {
         self.title_text.set_font_size(24);
         self.title_text.set_alignment(Alignment::Center);
 
-        self.index_text.set_size(self.inner.w, self.inner.h / 2 - padding * 2);
-        self.index_text.set_position(0, (self.inner.h / 2 + padding) as i32);
+        self.index_text.set_size(self.inner.w, self.inner.h / 2 - padding);
+        self.index_text.set_position(0, (self.inner.h / 2) as i32);
         self.index_text.set_font_size(48);
         self.index_text.set_alignment(Alignment::Center);
         self.index_text.set_text(format!("{}", self.index + 1));

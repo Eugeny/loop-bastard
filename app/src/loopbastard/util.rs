@@ -4,6 +4,7 @@ use sdl2::rect::Rect;
 use super::views::{View, Canvas};
 use super::Clock;
 use std::time::{Instant, Duration};
+use std::cmp::min;
 
 pub trait WithThread where Self: std::marker::Send {
     fn run(&mut self);
@@ -50,9 +51,16 @@ impl Timer {
     }
 }
 
-pub fn draw_rect(canvas: &mut Canvas, rect: Rect, width: u32) {
+pub fn draw_rect(canvas: &mut Canvas, rect: Rect, mut width: u32) {
+    width = min(rect.width() / 2, width);
+    width = min(rect.height() / 2, width);
     for i in 0..width {
-        canvas.draw_rect(Rect::new(rect.left() + i as i32, rect.top() + i as i32, rect.width() - i * 2, rect.height() - i * 2)).unwrap();
+        canvas.draw_rect(Rect::new(
+            rect.left() + i as i32,
+            rect.top() + i as i32,
+            rect.width() - i * 2,
+            rect.height() - i * 2
+        )).unwrap();
     }
 }
 
@@ -63,4 +71,28 @@ pub fn arrange_spaced<T>(views: &mut [T], spacing: u32, rect: &Rect) where T: Vi
         view.set_position(i as i32 * (w + spacing) as i32, 0);
         view.set_size(w, rect.height());
     }
+}
+
+pub fn dim_color(c: &Color, by: f32) -> Color {
+    return Color::RGB(
+        (c.r as f32 / by) as u8,
+        (c.g as f32 / by) as u8,
+        (c.b as f32 / by) as u8
+    );
+}
+
+pub fn dim_color_u8(c: &Color, by: u8) -> Color {
+    return Color::RGB(
+        c.r / by,
+        c.g / by,
+        c.b / by,
+    );
+}
+
+pub fn brighten_color(c: &Color, by: f32) -> Color {
+    return Color::RGB(
+        min(255, (c.r as f32 * by) as u32) as u8,
+        min(255, (c.g as f32 * by) as u32) as u8,
+        min(255, (c.b as f32 * by) as u32) as u8
+    );
 }

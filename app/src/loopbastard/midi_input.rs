@@ -9,7 +9,7 @@ use super::App;
 use super::events::{AppEvent, EventLoop, EventHandler};
 use midir::{MidiInput, MidiInputConnection};
 use std::collections::HashMap;
-use log::{info, debug};
+use log::{info, debug, warn};
 
 pub const MIDI_NAME: &str = "LoopBastard";
 
@@ -61,7 +61,7 @@ impl Message {
             midi::constants::CONTINUE => { m.kind = MessageKind::Continue; },
             midi::constants::SONG_POSITION_POINTER => {
                 m.kind = MessageKind::SongPosition;
-                m.position = (data[1] as u16) << 7 + data[2];
+                m.position = ((data[1] as u16) << 7) + data[2] as u16;
             },
             midi::constants::START => { m.kind = MessageKind::Start; },
             midi::constants::STOP => { m.kind = MessageKind::Stop; },
@@ -70,13 +70,14 @@ impl Message {
                 match data[0] >> 4 {
                     midi::constants::NOTE_OFF => {
                         m.kind = MessageKind::NoteOff;
-                        m.channel = data[0] & 0xF + 1;
+                        m.channel = (data[0] & 0x0F) + 1;
                         m.note = data[1];
                         m.velocity = data[2];
                     },
                     midi::constants::NOTE_ON => {
                         m.kind = MessageKind::NoteOn;
-                        m.channel = data[0] & 0xF + 1;
+                        println!("{:?} {:?} {:?}", data[0], data[0] & 0xf, data[0] & 0x0f);
+                        m.channel = (data[0] & 0x0F) + 1;
                         m.note = data[1];
                         m.velocity = data[2];
                     },
@@ -100,8 +101,8 @@ impl Message {
             MessageKind::Start => ([midi::constants::START, 0, 0], 1),
             MessageKind::Stop => ([midi::constants::STOP, 0, 0], 1),
             MessageKind::TimingClock => ([midi::constants::TIMING_CLOCK, 0, 0], 1),
-            MessageKind::NoteOn => ([midi::constants::NOTE_ON << 4 + self.channel - 1, self.note, self.velocity], 3),
-            MessageKind::NoteOff => ([midi::constants::NOTE_OFF << 4 + self.channel - 1, self.note, self.velocity], 3),
+            MessageKind::NoteOn => ([(midi::constants::NOTE_ON << 4) + self.channel - 1, self.note, self.velocity], 3),
+            MessageKind::NoteOff => ([(midi::constants::NOTE_OFF << 4) + self.channel - 1, self.note, self.velocity], 3),
             MessageKind::Unknown1 => ([self.message, 0, 0], 1),
             MessageKind::Unknown2 => ([self.message, self.a, 0], 2),
             MessageKind::Unknown3 => ([self.message, self.a, self.b], 3),
@@ -171,7 +172,7 @@ impl EventHandler for MIDIInput {
                 }).collect();
 
                 for (index, name) in names.iter() {
-                    if !self.connections.contains_key(name) && name.contains(MIDI_NAME) {
+                    if !self.connections.contains_key(name) && !name.contains(MIDI_NAME) {
                         info!("New input port: {}", name);
 
                         let queue = Arc::new(Mutex::new(Vec::new()));
@@ -187,6 +188,7 @@ impl EventHandler for MIDIInput {
                                 message_queue: queue,
                             });
                         } else {
+                            warn!("Input is failing: {}", name);
                             self.failed_ports.push(name.clone());
                         }
                     }

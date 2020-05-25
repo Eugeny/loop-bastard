@@ -1,19 +1,23 @@
 mod bank;
 mod root;
 mod sequencer;
+mod sequencer_body;
 mod sequencers;
 mod status_bar;
 mod text;
 mod texture_cache;
 mod texture_store;
 mod view;
+mod image;
 
 pub use super::App;
 pub use view::{Canvas, View, ViewBase, ViewInner, RenderContext};
 pub use root::RootView;
 pub use text::{Alignment, TextView};
 pub use bank::BankView;
+pub use image::ImageView;
 pub use sequencer::SequencerView;
+pub use sequencer_body::SequencerBodyView;
 pub use sequencers::SequencersView;
 pub use status_bar::StatusBarView;
 pub use texture_cache::TextureCache;

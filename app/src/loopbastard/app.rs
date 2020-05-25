@@ -7,7 +7,7 @@ extern crate spin_sleep;
 use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
 use std::time::{Instant, Duration};
-use super::{Button, Controls, Clock, Display, MIDIInput, MIDIOutput, Sequencer, SequencerAction};
+use super::{TICKS_PER_BEAT, Button, Controls, Clock, Display, MIDIInput, MIDIOutput, Sequencer, SequencerAction};
 use super::views::RootView;
 use super::util::Timer;
 use super::events::{EventLoop, AppEvent, EventHandler};
@@ -45,21 +45,23 @@ impl App {
         for _i in 0..16 {
             sequencers.push(Sequencer::new());
         }
-        for i in 0..128 {
+        sequencers[0].output_channel = 5;
+        for i in 0..16 {
             use super::{Message, MessageKind, SequencerEvent};
             let mut m = Message::new(MessageKind::NoteOn);
             m.note = 0 + i;
             m.velocity = 127;
             m.channel = 1;
             sequencers[0].events.push(SequencerEvent {
-                position: i as u32 * 3,
+                position: i as u32 * 6,
+                duration: 24,
                 message: m,
             });
-            m.kind = MessageKind::NoteOff;
-            sequencers[0].events.push(SequencerEvent {
-                position: i as u32 * 3 + 3,
-                message: m,
-            });
+            // m.kind = MessageKind::NoteOff;
+            // sequencers[0].events.push(SequencerEvent {
+            //     position: i as u32 * 3 + 3,
+            //     message: m,
+            // });
         }
         return Self {
             state: RefCell::new(AppState {
@@ -97,7 +99,6 @@ impl App {
         loop {
             {
                 let event_loop_cell = self.event_loop.lock().unwrap();
-                let mut internal_bpm = self._internal_clock_bpm.lock().unwrap();
                 let mut event_loop = event_loop_cell.borrow_mut();
 
                 if screen_timer.tick() {
@@ -106,6 +107,12 @@ impl App {
 
                 if midi_io_timer.tick() {
                     event_loop.post(AppEvent::MIDIIOScan);
+                    let mut internal_bpm = self._internal_clock_bpm.lock().unwrap();
+                    if self.clock.borrow().has_external_clock() {
+                        *internal_bpm = 0;
+                    } else {
+                        *internal_bpm = self.state.borrow().internal_bpm;
+                    }
                 }
 
                 self.midi_input.borrow_mut().tick(&mut event_loop);
@@ -113,12 +120,6 @@ impl App {
                 // Pump events
                 while let Some(event) = event_loop.get_event() {
                     self.handle_event(event, &mut event_loop);
-                }
-
-                if self.clock.borrow().has_external_clock() {
-                    *internal_bpm = 0;
-                } else {
-                    *internal_bpm = self.state.borrow().internal_bpm;
                 }
             }
             ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 200));
@@ -134,7 +135,7 @@ impl App {
                 let event_loop_cell = arc_event_loop.lock().unwrap();
                 let mut event_loop = event_loop_cell.borrow_mut();
                 event_loop.post(AppEvent::InternalClockTick);
-                next = now + Duration::from_secs_f32(60 as f32 / bpm as f32 / 24.0)
+                next = now + Duration::from_secs_f32(60 as f32 / bpm as f32 / TICKS_PER_BEAT as f32)
             } else {
                 next = now + Duration::from_millis(1000);
             }
@@ -151,15 +152,27 @@ impl App {
             match event {
                 AppEvent::ButtonPress(Button::Play) => {
                     let index = state.selected_sequencer;
-                    state.sequencers[index].schedule(SequencerAction::Start);
+                    if self.controls.borrow().shift_button.pressed || state.sequencers[index].recording {
+                        state.sequencers[index].perform(SequencerAction::Start);
+                    } else {
+                        state.sequencers[index].schedule(SequencerAction::Start);
+                    }
                 },
                 AppEvent::ButtonPress(Button::Stop) => {
                     let index = state.selected_sequencer;
-                    state.sequencers[index].schedule(SequencerAction::Stop);
+                    if self.controls.borrow().shift_button.pressed {
+                        state.sequencers[index].perform(SequencerAction::Stop);
+                    } else {
+                        state.sequencers[index].schedule(SequencerAction::Stop);
+                    }
                 },
                 AppEvent::ButtonPress(Button::Record) => {
                     let index = state.selected_sequencer;
-                    state.sequencers[index].schedule(SequencerAction::Record);
+                    if self.controls.borrow().shift_button.pressed || state.sequencers[index].running {
+                        state.sequencers[index].perform(SequencerAction::Record);
+                    } else {
+                        state.sequencers[index].schedule(SequencerAction::Record);
+                    }
                 },
                 _ => (),
             }
